@@ -14,7 +14,7 @@ CompactMap is a Go library that provides a memory-efficient alternative to the s
 To install the CompactMap library, use `go get`:
 
 ```sh
-go get github.com/yourusername/compactmap
+go get github.com/goupdate/compactmap
 ```
 
 ## Usage
