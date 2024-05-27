@@ -13,7 +13,7 @@ func BenchmarkStandardMap(b *testing.B) {
 	}
 }
 
-var cm = NewCompactMap[int, int](100 * 1000 * 100)
+var cm = NewCompactMap[int, int]()
 
 // Benchmark for CompactMap
 func BenchmarkCompactMap(b *testing.B) {

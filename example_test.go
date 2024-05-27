@@ -7,7 +7,7 @@ import (
 )
 
 func TestAll(t *testing.T) {
-	m := NewCompactMap[int32, int32](5)
+	m := NewCompactMap[int32, int32]()
 	for i := int32(0); i < 10; i++ {
 		m.Add(i, 100+i)
 	}
@@ -47,7 +47,7 @@ func TestAll(t *testing.T) {
 	assert.True(t, err == nil)
 
 	// Loading the map from a file
-	m2 := NewCompactMap[int32, int32](5)
+	m2 := NewCompactMap[int32, int32]()
 	err = m2.Load("compactmap.dat")
 	if err != nil {
 		t.Fatal("Error loading map:", err)

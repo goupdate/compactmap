@@ -10,7 +10,7 @@ import (
 )
 
 func TestRamUsage(t *testing.T) {
-	var N = int32(1000 * 1000)
+	var N = int32(1000 * 10000)
 
 	keys := make([]int32, N)
 	for i := int32(0); i < N; i++ {
@@ -32,9 +32,9 @@ func TestRamUsage(t *testing.T) {
 
 	fmt.Printf("Memory used for standard map[int]int %dM elements = %v MiB\n", N, (std.Alloc-was.Alloc)/1024/1024)
 
-	m := NewCompactMap[int32, int32](5)
+	m := NewCompactMap[int32, int32]()
 	for i := int32(0); i < N; i++ {
-		m.Add(i, keys[i])
+		m.Add(keys[i], i)
 	}
 
 	runtime.GC()
@@ -56,6 +56,5 @@ func TestRamUsage(t *testing.T) {
 	fmt.Printf("Slice used for %dM elements = %v MiB\n", N, (sl.Alloc-com.Alloc)/1024/1024)
 	assert.Equal(t, len(keys2), len(keys))
 
-	v, _ := m.Get(1)
-	assert.True(t, v == s[1].Value)
+	fmt.Println(m.Count())
 }

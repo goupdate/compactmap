@@ -13,6 +13,8 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+const maxSliceSize = 1000
+
 type Entry[K constraints.Ordered, V any] struct {
 	Key   K
 	Value V
@@ -21,14 +23,14 @@ type Entry[K constraints.Ordered, V any] struct {
 type CompactMap[K constraints.Ordered, V any] struct {
 	sync.Mutex
 
-	buffer     []*[]Entry[K, V]
+	buffers    []*[]Entry[K, V]
 	changed    bool
 	loadedFile string
 }
 
 func NewCompactMap[K constraints.Ordered, V any]() *CompactMap[K, V] {
 	return &CompactMap[K, V]{
-		buffer:     make([]*[]Entry[K, V], 0, 100),
+		buffers:    make([]*[]Entry[K, V], 0, 100),
 		changed:    false,
 		loadedFile: "",
 	}
@@ -38,17 +40,46 @@ func (m *CompactMap[K, V]) Add(key K, value V) {
 	m.Lock()
 	defer m.Unlock()
 
-	index := sort.Search(len(m.buffer), func(i int) bool {
-		return m.buffer[i].Key >= key
+	if len(m.buffers) == 0 {
+		newBuffer := &[]Entry[K, V]{Entry[K, V]{Key: key, Value: value}}
+		m.buffers = append(m.buffers, newBuffer)
+		m.changed = true
+		return
+	}
+
+	// Binary search to find the right buffer
+	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
+		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
 	})
 
-	if index < len(m.buffer) && m.buffer[index].Key == key {
-		m.buffer[index].Value = value
-	} else {
-		m.buffer = append(m.buffer, Entry[K, V]{})
-		copy(m.buffer[index+1:], m.buffer[index:])
-		m.buffer[index] = Entry[K, V]{Key: key, Value: value}
+	if bufferIndex < len(m.buffers) {
+		buffer := m.buffers[bufferIndex]
+		if len(*buffer) < maxSliceSize {
+			index := sort.Search(len(*buffer), func(i int) bool {
+				return (*buffer)[i].Key >= key
+			})
+
+			if index < len(*buffer) && (*buffer)[index].Key == key {
+				(*buffer)[index].Value = value
+			} else {
+				*buffer = append(*buffer, Entry[K, V]{})
+				copy((*buffer)[index+1:], (*buffer)[index:])
+				(*buffer)[index] = Entry[K, V]{Key: key, Value: value}
+			}
+			m.changed = true
+			return
+		}
 	}
+
+	// If no appropriate buffer found, create a new one
+	newBuffer := &[]Entry[K, V]{Entry[K, V]{Key: key, Value: value}}
+	m.buffers = append(m.buffers, newBuffer)
+
+	// Sort the buffers to maintain order
+	sort.Slice(m.buffers, func(i, j int) bool {
+		return len(*m.buffers[i]) > 0 && len(*m.buffers[j]) > 0 && (*m.buffers[i])[0].Key < (*m.buffers[j])[0].Key
+	})
+
 	m.changed = true
 }
 
@@ -56,13 +87,19 @@ func (m *CompactMap[K, V]) Get(key K) (V, bool) {
 	m.Lock()
 	defer m.Unlock()
 
-	buffer := m.buffer
-	index := sort.Search(len(buffer), func(i int) bool {
-		return m.buffer[i].Key >= key
+	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
+		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
 	})
 
-	if index < len(buffer) && m.buffer[index].Key == key {
-		return m.buffer[index].Value, true
+	if bufferIndex < len(m.buffers) {
+		buffer := m.buffers[bufferIndex]
+		index := sort.Search(len(*buffer), func(i int) bool {
+			return (*buffer)[i].Key >= key
+		})
+
+		if index < len(*buffer) && (*buffer)[index].Key == key {
+			return (*buffer)[index].Value, true
+		}
 	}
 
 	var zero V
@@ -73,13 +110,21 @@ func (m *CompactMap[K, V]) Delete(key K) {
 	m.Lock()
 	defer m.Unlock()
 
-	index := sort.Search(len(m.buffer), func(i int) bool {
-		return m.buffer[i].Key >= key
+	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
+		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
 	})
 
-	if index < len(m.buffer) && m.buffer[index].Key == key {
-		m.buffer = append(m.buffer[:index], m.buffer[index+1:]...)
-		m.changed = true
+	if bufferIndex < len(m.buffers) {
+		buffer := m.buffers[bufferIndex]
+		index := sort.Search(len(*buffer), func(i int) bool {
+			return (*buffer)[i].Key >= key
+		})
+
+		if index < len(*buffer) && (*buffer)[index].Key == key {
+			*buffer = append((*buffer)[:index], (*buffer)[index+1:]...)
+			m.changed = true
+			return
+		}
 	}
 }
 
@@ -88,27 +133,52 @@ func (m *CompactMap[K, V]) Iterate(fn func(key K, val V) bool) {
 	m.Lock()
 	defer m.Unlock()
 
-	for _, k := range m.buffer {
-		if !fn(k.Key, k.Value) {
-			return
+	for _, buffer := range m.buffers {
+		buffer_ := *buffer
+		for _, k := range buffer_ {
+			if !fn(k.Key, k.Value) {
+				return
+			}
 		}
 	}
 }
 
 func (m *CompactMap[K, V]) Exist(key K) bool {
-	buffer := m.buffer
-	index := sort.Search(len(buffer), func(i int) bool {
-		return m.buffer[i].Key >= key
+	m.Lock()
+	defer m.Unlock()
+
+	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
+		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
 	})
 
-	return index < len(buffer)
+	if bufferIndex < len(m.buffers) {
+		buffer := m.buffers[bufferIndex]
+		index := sort.Search(len(*buffer), func(i int) bool {
+			return (*buffer)[i].Key >= key
+		})
+
+		if index < len(*buffer) && (*buffer)[index].Key == key {
+			return true
+		}
+	}
+	return false
 }
 
-func (m *CompactMap[K, V]) Count() int64 {
-	return int64(len(m.buffer))
+func (m *CompactMap[K, V]) Count() int {
+	m.Lock()
+	defer m.Unlock()
+
+	count := 0
+	for _, buffer := range m.buffers {
+		count += len(*buffer)
+	}
+	return count
 }
 
 func (m *CompactMap[K, V]) Save(filename string) error {
+	m.Lock()
+	defer m.Unlock()
+
 	if m.loadedFile == filename && !m.changed {
 		return nil
 	}
@@ -146,7 +216,11 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	}
 
 	// Write number of entries
-	totalEntries := m.Count()
+	totalEntries := 0 //Count()
+	for _, buffer := range m.buffers {
+		totalEntries += len(*buffer)
+	}
+
 	totalEntriesBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(totalEntriesBuf, uint64(totalEntries))
 	if err := writeToFile(totalEntriesBuf); err != nil {
@@ -155,33 +229,36 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 
 	var buf4 [4]byte
 
-	// Write keys and values
-	for _, entry := range m.buffer {
-		keyData, err := serialize(entry.Key)
-		if err != nil {
-			return err
-		}
-		valueData, err := serialize(entry.Value)
-		if err != nil {
-			return err
-		}
+	for _, buffer_ := range m.buffers {
+		buffer := *buffer_
+		// Write keys and values
+		for _, entry := range buffer {
+			keyData, err := serialize(entry.Key)
+			if err != nil {
+				return err
+			}
+			valueData, err := serialize(entry.Value)
+			if err != nil {
+				return err
+			}
 
-		// Write key size and key
-		binary.LittleEndian.PutUint32(buf4[:], uint32(len(keyData)))
-		if err := writeToFile(buf4[:]); err != nil {
-			return err
-		}
-		if err := writeToFile(keyData); err != nil {
-			return err
-		}
+			// Write key size and key
+			binary.LittleEndian.PutUint32(buf4[:], uint32(len(keyData)))
+			if err := writeToFile(buf4[:]); err != nil {
+				return err
+			}
+			if err := writeToFile(keyData); err != nil {
+				return err
+			}
 
-		// Write value size and value
-		binary.LittleEndian.PutUint32(buf4[:], uint32(len(valueData)))
-		if err := writeToFile(buf4[:]); err != nil {
-			return err
-		}
-		if err := writeToFile(valueData); err != nil {
-			return err
+			// Write value size and value
+			binary.LittleEndian.PutUint32(buf4[:], uint32(len(valueData)))
+			if err := writeToFile(buf4[:]); err != nil {
+				return err
+			}
+			if err := writeToFile(valueData); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -211,8 +288,6 @@ func (m *CompactMap[K, V]) Load(filename string) error {
 		return err
 	}
 
-	m.buffer = make([]Entry[K, V], 0, numEntries)
-
 	// Read keys and values
 	for i := int64(0); i < numEntries; i++ {
 		var keySize int32
@@ -241,7 +316,7 @@ func (m *CompactMap[K, V]) Load(filename string) error {
 			return err
 		}
 
-		m.buffer = append(m.buffer, Entry[K, V]{Key: key, Value: value})
+		m.Add(key, value)
 	}
 
 	m.changed = false
