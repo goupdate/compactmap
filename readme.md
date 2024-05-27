@@ -118,7 +118,8 @@ if err != nil {
 
 ## Performance
 
-Here are the performance benchmarks for the CompactMap:
+Here are the performance benchmarks for the CompactMap.
+It's 2 times uses less memory of standart map with the same speed!
 
 ```
 Memory used for standard map[int]int 10000000 elements = 170 MiB
