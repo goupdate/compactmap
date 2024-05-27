@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -47,38 +48,28 @@ func (m *CompactMap[K, V]) Add(key K, value V) {
 		return
 	}
 
-	// Binary search to find the right buffer
-	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
-		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
-	})
+	bufferIndex := len(m.buffers) - 1
 
-	if bufferIndex < len(m.buffers) {
-		buffer := m.buffers[bufferIndex]
-		if len(*buffer) < maxSliceSize {
-			index := sort.Search(len(*buffer), func(i int) bool {
-				return (*buffer)[i].Key >= key
-			})
+	buffer := m.buffers[bufferIndex]
+	if len(*buffer) < maxSliceSize {
+		index := sort.Search(len(*buffer), func(i int) bool {
+			return (*buffer)[i].Key >= key
+		})
 
-			if index < len(*buffer) && (*buffer)[index].Key == key {
-				(*buffer)[index].Value = value
-			} else {
-				*buffer = append(*buffer, Entry[K, V]{})
-				copy((*buffer)[index+1:], (*buffer)[index:])
-				(*buffer)[index] = Entry[K, V]{Key: key, Value: value}
-			}
-			m.changed = true
-			return
+		if index < len(*buffer) && (*buffer)[index].Key == key {
+			(*buffer)[index].Value = value
+		} else {
+			*buffer = append(*buffer, Entry[K, V]{})
+			copy((*buffer)[index+1:], (*buffer)[index:])
+			(*buffer)[index] = Entry[K, V]{Key: key, Value: value}
 		}
+		m.changed = true
+		return
 	}
 
 	// If no appropriate buffer found, create a new one
 	newBuffer := &[]Entry[K, V]{Entry[K, V]{Key: key, Value: value}}
 	m.buffers = append(m.buffers, newBuffer)
-
-	// Sort the buffers to maintain order
-	sort.Slice(m.buffers, func(i, j int) bool {
-		return len(*m.buffers[i]) > 0 && len(*m.buffers[j]) > 0 && (*m.buffers[i])[0].Key < (*m.buffers[j])[0].Key
-	})
 
 	m.changed = true
 }
@@ -87,11 +78,7 @@ func (m *CompactMap[K, V]) Get(key K) (V, bool) {
 	m.Lock()
 	defer m.Unlock()
 
-	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
-		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
-	})
-
-	if bufferIndex < len(m.buffers) {
+	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
@@ -110,18 +97,21 @@ func (m *CompactMap[K, V]) Delete(key K) {
 	m.Lock()
 	defer m.Unlock()
 
-	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
-		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
-	})
-
-	if bufferIndex < len(m.buffers) {
+	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
 		})
 
 		if index < len(*buffer) && (*buffer)[index].Key == key {
-			*buffer = append((*buffer)[:index], (*buffer)[index+1:]...)
+			if len(*buffer) > 1 {
+				//remove element in inner buffer
+				*buffer = append((*buffer)[:index], (*buffer)[index+1:]...)
+			} else {
+				//remove whole slice
+				m.buffers = append((m.buffers)[:bufferIndex], (m.buffers)[bufferIndex+1:]...)
+			}
+
 			m.changed = true
 			return
 		}
@@ -147,11 +137,7 @@ func (m *CompactMap[K, V]) Exist(key K) bool {
 	m.Lock()
 	defer m.Unlock()
 
-	bufferIndex := sort.Search(len(m.buffers), func(i int) bool {
-		return len(*m.buffers[i]) > 0 && (*m.buffers[i])[len(*m.buffers[i])-1].Key >= key
-	})
-
-	if bufferIndex < len(m.buffers) {
+	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
@@ -173,6 +159,20 @@ func (m *CompactMap[K, V]) Count() int {
 		count += len(*buffer)
 	}
 	return count
+}
+
+func (m *CompactMap[K, V]) Stats() string {
+	m.Lock()
+	defer m.Unlock()
+
+	count := 0
+	for _, buffer := range m.buffers {
+		count += len(*buffer)
+	}
+
+	str := fmt.Sprintf("%d buffers, total len: %d", len(m.buffers), count)
+
+	return str
 }
 
 func (m *CompactMap[K, V]) Save(filename string) error {

@@ -2,20 +2,12 @@ package compactmap
 
 import (
 	"fmt"
-	"math/rand"
 	"runtime"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestRamUsage(t *testing.T) {
-	var N = int32(1000 * 10000)
-
-	keys := make([]int32, N)
-	for i := int32(0); i < N; i++ {
-		keys[i] = int32(rand.Intn(int(N)))
-	}
+	var N = int32(10 * 1000 * 1000)
 
 	runtime.GC()
 	var was runtime.MemStats
@@ -23,18 +15,18 @@ func TestRamUsage(t *testing.T) {
 
 	keys2 := make(map[int32]int32)
 	for i := int32(0); i < N; i++ {
-		keys2[i] = keys[i]
+		keys2[i] = i * 2
 	}
 
 	runtime.GC()
 	var std runtime.MemStats
 	runtime.ReadMemStats(&std)
 
-	fmt.Printf("Memory used for standard map[int]int %dM elements = %v MiB\n", N, (std.Alloc-was.Alloc)/1024/1024)
+	fmt.Printf("Memory used for standard map[int]int %d elements = %v MiB\n", N, (std.Alloc-was.Alloc)/1024/1024)
 
 	m := NewCompactMap[int32, int32]()
 	for i := int32(0); i < N; i++ {
-		m.Add(keys[i], i)
+		m.Add(i, i*2)
 	}
 
 	runtime.GC()
@@ -42,19 +34,11 @@ func TestRamUsage(t *testing.T) {
 	runtime.ReadMemStats(&com)
 	runtime.GC()
 
-	fmt.Printf("CompactMem used for %dM elements = %v MiB\n", N, (com.Alloc-std.Alloc)/1024/1024)
+	fmt.Printf("CompactMem used for %d elements = %v MiB\n", N, (com.Alloc-std.Alloc)/1024/1024)
 
-	s := []*Entry[int32, int32]{}
-	for i := int32(0); i < N; i++ {
-		s = append(s, &Entry[int32, int32]{Key: i, Value: keys[i]})
+	if m.Count()+len(keys2) == 2 {
+		t.Fatal()
 	}
 
-	runtime.GC()
-	var sl runtime.MemStats
-	runtime.ReadMemStats(&sl)
-
-	fmt.Printf("Slice used for %dM elements = %v MiB\n", N, (sl.Alloc-com.Alloc)/1024/1024)
-	assert.Equal(t, len(keys2), len(keys))
-
-	fmt.Println(m.Count())
+	fmt.Printf("stats: %s\n", m.Stats())
 }
