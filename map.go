@@ -189,7 +189,7 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	}
 	defer file.Close()
 
-	const bufferSize = 6 //50 * 1024 * 1024 // 50MB
+	const bufferSize = 50 * 1024 * 1024 // 50MB
 	var buffer [bufferSize]byte
 	bufferPos := 0
 
