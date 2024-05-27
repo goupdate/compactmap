@@ -22,7 +22,7 @@ type Entry[K constraints.Ordered, V any] struct {
 }
 
 type CompactMap[K constraints.Ordered, V any] struct {
-	sync.Mutex
+	sync.RWMutex
 
 	buffers    []*[]Entry[K, V]
 	changed    bool
@@ -75,8 +75,8 @@ func (m *CompactMap[K, V]) Add(key K, value V) {
 }
 
 func (m *CompactMap[K, V]) Get(key K) (V, bool) {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
@@ -120,8 +120,8 @@ func (m *CompactMap[K, V]) Delete(key K) {
 
 // dont modify database in iterate!
 func (m *CompactMap[K, V]) Iterate(fn func(key K, val V) bool) {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	for _, buffer := range m.buffers {
 		buffer_ := *buffer
@@ -134,8 +134,8 @@ func (m *CompactMap[K, V]) Iterate(fn func(key K, val V) bool) {
 }
 
 func (m *CompactMap[K, V]) Exist(key K) bool {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
@@ -151,8 +151,8 @@ func (m *CompactMap[K, V]) Exist(key K) bool {
 }
 
 func (m *CompactMap[K, V]) Count() int {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	count := 0
 	for _, buffer := range m.buffers {
@@ -162,8 +162,8 @@ func (m *CompactMap[K, V]) Count() int {
 }
 
 func (m *CompactMap[K, V]) Stats() string {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	count := 0
 	for _, buffer := range m.buffers {
@@ -176,8 +176,8 @@ func (m *CompactMap[K, V]) Stats() string {
 }
 
 func (m *CompactMap[K, V]) Save(filename string) error {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	if m.loadedFile == filename && !m.changed {
 		return nil
