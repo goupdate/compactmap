@@ -1,4 +1,4 @@
-module compactmap
+module github.com/goupdate/compactmap
 
 go 1.22.2
 
