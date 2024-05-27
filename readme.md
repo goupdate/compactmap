@@ -1,4 +1,3 @@
-```markdown
 # CompactMap
 
 CompactMap is a Go library that provides a memory-efficient alternative to the standard map with a comparable performance. It organizes entries into multiple buffers to optimize memory usage, making it suitable for applications where memory efficiency is critical.
