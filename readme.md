@@ -28,7 +28,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/yourusername/compactmap"
+	"github.com/goupdate/compactmap"
 )
 
 func main() {
