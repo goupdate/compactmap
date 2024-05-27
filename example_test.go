@@ -43,12 +43,12 @@ func TestAll(t *testing.T) {
 	assert.Equal(t, len(buf), 1)
 
 	// Saving the map to a file
-	err := m.Save("compactmap.dat")
+	err := m.Save("dat")
 	assert.True(t, err == nil)
 
 	// Loading the map from a file
 	m2 := NewCompactMap[int32, int32]()
-	err = m2.Load("compactmap.dat")
+	err = m2.Load("dat")
 	if err != nil {
 		t.Fatal("Error loading map:", err)
 	}
