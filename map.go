@@ -190,28 +190,12 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	defer file.Close()
 
 	const bufferSize = 50 * 1024 * 1024 // 50MB
-	var buffer [bufferSize]byte
-	bufferPos := 0
+	writer := bufio.NewWriterSize(file, bufferSize)
 
-	// Helper function to write to buffer and flush if necessary
 	writeToFile := func(data []byte) error {
-		dataLen := len(data)
-		//write previous
-		if bufferPos+dataLen > bufferSize {
-			if _, err := file.Write(buffer[:bufferPos]); err != nil {
-				return err
-			}
-			bufferPos = 0
+		if _, err := writer.Write(data); err != nil {
+			return err
 		}
-		//write data directly if too big
-		if dataLen > bufferSize {
-			if _, err := file.Write(data); err != nil {
-				return err
-			}
-			return nil
-		}
-		copy(buffer[bufferPos:], data)
-		bufferPos += dataLen
 		return nil
 	}
 
@@ -262,16 +246,11 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 		}
 	}
 
-	// Flush remaining data in buffer
-	if bufferPos > 0 {
-		if _, err := file.Write(buffer[:bufferPos]); err != nil {
-			return err
-		}
-	}
+	err = writer.Flush()
 
 	m.changed = false
 	m.loadedFile = filename
-	return nil
+	return err
 }
 
 func (m *CompactMap[K, V]) Load(filename string) error {
