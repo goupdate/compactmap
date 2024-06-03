@@ -1,4 +1,4 @@
-module structmap
+module github.com/goupdate/compactmap/structmap
 
 go 1.22.3
 
