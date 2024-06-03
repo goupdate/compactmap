@@ -1,0 +1,1 @@
+Database provider for compactmap of custom type
