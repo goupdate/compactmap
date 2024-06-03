@@ -2,14 +2,13 @@ package compactmap
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
-	"errors"
+	"encoding/gob"
 	"fmt"
 	"os"
-	"reflect"
 	"sort"
 	"sync"
-	"unsafe"
 
 	"golang.org/x/exp/constraints"
 )
@@ -35,6 +34,14 @@ func NewCompactMap[K constraints.Ordered, V any]() *CompactMap[K, V] {
 		changed:    false,
 		loadedFile: "",
 	}
+}
+
+func (m *CompactMap[K, V]) Clear() {
+	m.Lock()
+	defer m.Unlock()
+
+	m.buffers = m.buffers[0:0]
+	m.changed = true
 }
 
 func (m *CompactMap[K, V]) Add(key K, value V) {
@@ -304,114 +311,21 @@ func (m *CompactMap[K, V]) Load(filename string) error {
 }
 
 func serialize[T any](data T) ([]byte, error) {
-	var buf []byte
-	v := reflect.ValueOf(data)
-	switch v.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		size := v.Type().Size()
-		buf = make([]byte, 8)
-		binary.LittleEndian.PutUint64(buf, uint64(v.Int()))
-		return buf[:size], nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		size := v.Type().Size()
-		buf = make([]byte, 8)
-		binary.LittleEndian.PutUint64(buf, v.Uint())
-		return buf[:size], nil
-	case reflect.Float32, reflect.Float64:
-		size := v.Type().Size()
-		buf = make([]byte, size)
-		binary.LittleEndian.PutUint64(buf, *(*uint64)(unsafe.Pointer(&data)))
-		return buf[:size], nil
-	case reflect.String:
-		str := v.String()
-		strLen := uint32(len(str))
-		buf = make([]byte, 4+strLen)
-		binary.LittleEndian.PutUint32(buf, strLen)
-		copy(buf[4:], str)
-		return buf, nil
-	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			slice := v.Bytes()
-			sliceLen := uint32(len(slice))
-			buf = make([]byte, 4+sliceLen)
-			binary.LittleEndian.PutUint32(buf, sliceLen)
-			copy(buf[4:], slice)
-			return buf, nil
-		}
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(data)
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("unsupported type " + reflect.TypeOf(v).String())
+	return buf.Bytes(), nil
 }
 
 func deserialize[T any](data []byte) (T, error) {
 	var result T
-	v := reflect.ValueOf(&result).Elem()
-	switch v.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		size := v.Type().Size()
-		if len(data) < int(size) {
-			return result, errors.New("data is too short")
-		}
-		switch size {
-		case 1:
-			v.SetInt(int64(data[0]))
-		case 2:
-			v.SetInt(int64(binary.LittleEndian.Uint16(data[:2])))
-		case 4:
-			v.SetInt(int64(binary.LittleEndian.Uint32(data[:4])))
-		case 8:
-			v.SetInt(int64(binary.LittleEndian.Uint64(data[:8])))
-		}
-		return result, nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		size := v.Type().Size()
-		if len(data) < int(size) {
-			return result, errors.New("data is too short")
-		}
-		switch size {
-		case 1:
-			v.SetUint(uint64(data[0]))
-		case 2:
-			v.SetUint(uint64(binary.LittleEndian.Uint16(data[:2])))
-		case 4:
-			v.SetUint(uint64(binary.LittleEndian.Uint32(data[:4])))
-		case 8:
-			v.SetUint(binary.LittleEndian.Uint64(data[:8]))
-		}
-		return result, nil
-	case reflect.Float32, reflect.Float64:
-		size := v.Type().Size()
-		if len(data) < int(size) {
-			return result, errors.New("data is too short")
-		}
-		switch size {
-		case 4:
-			v.SetFloat(float64(*(*float32)(unsafe.Pointer(&data[0]))))
-		case 8:
-			v.SetFloat(*(*float64)(unsafe.Pointer(&data[0])))
-		}
-		return result, nil
-	case reflect.String:
-		if len(data) < 4 {
-			return result, errors.New("data is too short")
-		}
-		strLen := binary.LittleEndian.Uint32(data[:4])
-		if len(data) < int(4+strLen) {
-			return result, errors.New("data is too short")
-		}
-		v.SetString(string(data[4 : 4+strLen]))
-		return result, nil
-	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			if len(data) < 4 {
-				return result, errors.New("data is too short")
-			}
-			sliceLen := binary.LittleEndian.Uint32(data[:4])
-			if len(data) < int(4+sliceLen) {
-				return result, errors.New("data is too short")
-			}
-			v.SetBytes(data[4 : 4+sliceLen])
-			return result, nil
-		}
+	dec := gob.NewDecoder(bytes.NewBuffer(data))
+	err := dec.Decode(&result)
+	if err != nil {
+		return result, err
 	}
-	return result, errors.New("unsupported type")
+	return result, nil
 }
