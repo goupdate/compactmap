@@ -53,6 +53,10 @@ func New[V any](storageFile string, failIfNotLoaded bool) (*StructMap[V], error)
 	return &StructMap[V]{cm: cm, maxId: maxId, info: info, storageFile: storageFile}, nil
 }
 
+func (p *StructMap[V]) GetMaxId() int64 {
+	return atomic.LoadInt64(&p.maxId)
+}
+
 func (p *StructMap[V]) Save() error {
 	p.info.Add(1, p.maxId)
 	err := p.cm.Save(p.storageFile)
