@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/goupdate/compactmap"
@@ -14,9 +15,11 @@ import (
 */
 
 type StructMap[V any] struct {
-	cm *compactmap.CompactMap[int64, V] //im-memory database
+	sync.RWMutex
 
-	info        *compactmap.CompactMap[int64, int64] //store maxId
+	cm   *compactmap.CompactMap[int64, V]     //im-memory database
+	info *compactmap.CompactMap[int64, int64] //store maxId
+
 	storageFile string
 
 	maxId int64 //max stored id, incremented after Add
@@ -64,6 +67,9 @@ func (p *StructMap[V]) Save() error {
 }
 
 func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool {
+	p.Lock()
+	defer p.Unlock()
+
 	store, ex := p.cm.Get(id)
 	if !ex {
 		return false
