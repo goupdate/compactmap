@@ -9,7 +9,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const (
+var (
 	Timeout = 15 * time.Second
 )
 
