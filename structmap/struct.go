@@ -64,7 +64,7 @@ func New[V any](storageFile string, failIfNotLoaded bool) (*StructMap[V], error)
 
 	maxId, ex := info.Get(1)
 	if !ex {
-		info.Add(1, 1)
+		info.AddOrSet(1, 1)
 		maxId = 1
 	}
 
@@ -78,7 +78,7 @@ func (p *StructMap[V]) GetMaxId() int64 {
 
 // Save stores the current state of the map to a file
 func (p *StructMap[V]) Save() error {
-	p.info.Add(1, p.maxId)
+	p.info.AddOrSet(1, p.maxId)
 	err := p.cm.Save(p.storageFile)
 	if err != nil {
 		return err
@@ -293,6 +293,6 @@ func (p *StructMap[V]) Add(v V) int64 {
 		id = idField.Int()
 	}
 
-	p.cm.Add(id, v)
+	p.cm.AddOrSet(id, v)
 	return id
 }

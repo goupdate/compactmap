@@ -44,7 +44,8 @@ func (m *CompactMap[K, V]) Clear() {
 	m.changed = true
 }
 
-func (m *CompactMap[K, V]) Add(key K, value V) {
+// Add or Set
+func (m *CompactMap[K, V]) AddOrSet(key K, value V) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -302,7 +303,7 @@ func (m *CompactMap[K, V]) Load(filename string) error {
 			return err
 		}
 
-		m.Add(key, value)
+		m.AddOrSet(key, value)
 	}
 
 	m.changed = false
