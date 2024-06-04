@@ -84,6 +84,10 @@ func (s *Server[V]) GetFasthttpServer() *fasthttp.Server {
 	return s.srv
 }
 
+func (s *Server[V]) GetStorage() *structmap.StructMap[*V] {
+	return s.storage
+}
+
 func (s *Server[V]) EnableBackupsEvery(interval time.Duration, storeBackups int) {
 	s.Lock()
 	defer s.Unlock()
