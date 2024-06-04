@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/MasterDimmy/zipologger"
 
@@ -12,8 +14,13 @@ import (
 )
 
 type Server[V any] struct {
-	storage *structmap.StructMap[*V]
-	srv     *fasthttp.Server
+	sync.RWMutex
+
+	storage     *structmap.StructMap[*V]
+	srv         *fasthttp.Server
+	storageName string
+
+	backupsTicker *time.Ticker
 
 	logsLevel int //0 = OFF, 1=CALLS, 2=CALLS+DATA
 	log       *zipologger.Logger
@@ -39,8 +46,9 @@ func New[V any](storageName string) (*Server[V], error) {
 	log := zipologger.NewLogger("./logs/structmap_server.log", 5, 5, 5, false)
 
 	server := &Server[V]{
-		storage: storage,
-		log:     log,
+		storage:     storage,
+		log:         log,
+		storageName: storageName,
 	}
 
 	router := fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
@@ -74,6 +82,28 @@ func New[V any](storageName string) (*Server[V], error) {
 
 func (s *Server[V]) GetFasthttpServer() *fasthttp.Server {
 	return s.srv
+}
+
+func (s *Server[V]) EnableBackupsEvery(interval time.Duration, storeBackups int) {
+	s.Lock()
+	defer s.Unlock()
+
+	if s.backupsTicker != nil {
+		s.backupsTicker.Stop()
+	}
+	s.backupsTicker = time.NewTicker(interval)
+	go func() {
+		num := 0
+		for _ = range s.backupsTicker.C {
+			err := s.storage.SaveAs(s.storageName + ".backup" + fmt.Sprintf("%d", num))
+			if err != nil {
+				s.log.Printf("ERROR: %v", err.Error())
+			}
+			num++
+			num = num % storeBackups
+		}
+
+	}()
 }
 
 func (s *Server[V]) respondWithError(ctx *fasthttp.RequestCtx, message string) {
