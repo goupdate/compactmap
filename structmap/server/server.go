@@ -69,8 +69,8 @@ func New[V any](storageName string) (*Server[V], error) {
 			server.handleSetFields(ctx, storage)
 		case "/api/find":
 			server.handleFind(ctx, storage)
-		case "/api/iterate":
-			server.handleIterate(ctx, storage)
+		case "/api/all":
+			server.handleAll(ctx, storage)
 		default:
 			ctx.Error("Unsupported path", fasthttp.StatusNotFound)
 		}
@@ -265,13 +265,9 @@ func (s *Server[V]) handleFind(ctx *fasthttp.RequestCtx, storage *structmap.Stru
 	s.respondWithSuccess(ctx, results)
 }
 
-func (s *Server[V]) handleIterate(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
+func (s *Server[V]) handleAll(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
 	s.logAction(ctx)
 
-	var results []*V
-	storage.Iterate(func(v *V) bool {
-		results = append(results, v)
-		return true
-	})
+	var results = storage.GetAll()
 	s.respondWithSuccess(ctx, results)
 }

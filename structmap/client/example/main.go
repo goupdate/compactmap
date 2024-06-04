@@ -131,7 +131,7 @@ func main() {
 	log.Printf("Found items: %+v\n", results)
 
 	// Test Iterate
-	results, err = client.Iterate()
+	results, err = client.All()
 	if err != nil {
 		log.Fatalf("Failed to iterate items: %v", err)
 	}
