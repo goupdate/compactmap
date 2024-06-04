@@ -146,6 +146,12 @@ func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
 }
 
 // Update updates multiple fields for structs that match the given conditions
+/*
+condition logic can be:
+"" - doesnt matter
+OR - where1 || where2 || where3 ...
+AND - where1 && where2 && where3
+*/
 func (p *StructMap[V]) Update(condition string, where []FindCondition, fields map[string]interface{}) int {
 	elems := p.Find(condition, where...)
 	updatedCount := 0
@@ -216,7 +222,10 @@ type FindCondition struct {
 }
 
 /*
-condition = "" - no, for single where / AND / OR
+condition logic can be:
+"" - doesnt matter
+OR - where1 || where2 || where3 ...
+AND - where1 && where2 && where3
 */
 func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 	var ret []V
