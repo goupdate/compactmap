@@ -17,19 +17,37 @@ import (
 type StructMap[V any] struct {
 	sync.RWMutex
 
-	cm   *compactmap.CompactMap[int64, V]     //im-memory database
-	info *compactmap.CompactMap[int64, int64] //store maxId
+	cm   *compactmap.CompactMap[int64, V]     // In-memory database
+	info *compactmap.CompactMap[int64, int64] // Store maxId
 
 	storageFile string
 
-	maxId int64 //max stored id, incremented after Add
+	maxId int64 // Max stored id, incremented after Add
 }
 
 // V - should be pointer to struct
 func New[V any](storageFile string, failIfNotLoaded bool) (*StructMap[V], error) {
 	var zero V
-	if reflect.ValueOf(&zero).Elem().Kind() != reflect.Pointer {
-		panic(fmt.Sprintf("cant add %v need pointer", reflect.TypeOf(zero).Name()))
+	valType := reflect.TypeOf(&zero).Elem()
+
+	// Check if V is a pointer
+	if valType.Kind() != reflect.Pointer {
+		panic(fmt.Sprintf("cant use %v need pointer", valType.Name()))
+	}
+
+	// Check if V is a pointer to a struct
+	structType := valType.Elem()
+	if structType.Kind() != reflect.Struct {
+		panic(fmt.Sprintf("%v is not a struct", structType.Name()))
+	}
+
+	// Check if the struct has a field named "Id"
+	id, ok := structType.FieldByName("Id")
+	if !ok {
+		panic(fmt.Sprintf("struct %v does not have a field named 'Id'", structType.Name()))
+	}
+	if id.Type.Kind() != reflect.Int64 {
+		panic("Id should be int64")
 	}
 
 	cm := compactmap.NewCompactMap[int64, V]()
@@ -53,10 +71,12 @@ func New[V any](storageFile string, failIfNotLoaded bool) (*StructMap[V], error)
 	return &StructMap[V]{cm: cm, maxId: maxId, info: info, storageFile: storageFile}, nil
 }
 
+// GetMaxId returns the current max ID
 func (p *StructMap[V]) GetMaxId() int64 {
 	return atomic.LoadInt64(&p.maxId)
 }
 
+// Save stores the current state of the map to a file
 func (p *StructMap[V]) Save() error {
 	p.info.Add(1, p.maxId)
 	err := p.cm.Save(p.storageFile)
@@ -70,6 +90,7 @@ func (p *StructMap[V]) Save() error {
 	return nil
 }
 
+// SetField sets a specific field to a value for a struct by ID
 func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool {
 	p.Lock()
 	defer p.Unlock()
@@ -87,6 +108,48 @@ func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool 
 	return true
 }
 
+// SetFields sets multiple fields for a struct by ID
+func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
+	p.Lock()
+	defer p.Unlock()
+
+	store, ex := p.cm.Get(id)
+	if !ex {
+		return false
+	}
+	val := reflect.Indirect(reflect.ValueOf(store))
+
+	for field, value := range fields {
+		f := val.FieldByName(field)
+		if !f.IsValid() || !f.CanSet() {
+			return false
+		}
+		f.Set(reflect.ValueOf(value))
+	}
+	return true
+}
+
+// Update updates multiple fields for structs that match the given conditions
+func (p *StructMap[V]) Update(condition string, where []FindCondition, fields map[string]interface{}) int {
+	elems := p.Find(condition, where...)
+	updatedCount := 0
+
+	for _, elem := range elems {
+		idField := reflect.ValueOf(elem).Elem().FieldByName("Id")
+		if !idField.IsValid() {
+			continue
+		}
+
+		id := idField.Interface().(int64)
+		if p.SetFields(id, fields) {
+			updatedCount++
+		}
+	}
+
+	return updatedCount
+}
+
+// GetAll retrieves all structs from the map
 func (p *StructMap[V]) GetAll() []V {
 	var ret []V
 	p.cm.Iterate(func(k int64, v V) bool {
@@ -96,6 +159,7 @@ func (p *StructMap[V]) GetAll() []V {
 	return ret
 }
 
+// compareValues compares two values based on the given operator
 func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val := reflect.Indirect(reflect.ValueOf(v1))
 	v2Val := reflect.Indirect(reflect.ValueOf(v2))
@@ -123,6 +187,8 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		str1, ok1 := v1Val.Interface().(string)
 		str2, ok2 := v2Val.Interface().(string)
 		return ok1 && ok2 && strings.Contains(str1, str2)
+	default:
+		panic("unknown field condition: " + op)
 	}
 	return false
 }
@@ -130,13 +196,11 @@ func compareValues(v1, v2 interface{}, op string) bool {
 type FindCondition struct {
 	Field string
 	Value interface{}
-	Op    string // "equal", "eq", =
-	// "gt", "more", >
-	// "lt", "less", <
+	Op    string // "equal", "eq", =, "gt", "more", >, "lt", "less", <
 }
 
 /*
-condition = "" - no, for single where  / AND / OR
+condition = "" - no, for single where / AND / OR
 */
 func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 	var ret []V
@@ -178,30 +242,49 @@ func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 	return ret
 }
 
+// Iterate iterates over all structs in the map and applies the given function
 func (p *StructMap[V]) Iterate(fn func(v V) bool) {
 	p.cm.Iterate(func(_ int64, v V) bool {
 		return fn(v)
 	})
 }
 
+// Get retrieves a struct by ID
 func (p *StructMap[V]) Get(id int64) (V, bool) {
 	return p.cm.Get(id)
 }
 
+// Delete removes a struct by ID
 func (p *StructMap[V]) Delete(id int64) {
 	p.cm.Delete(id)
 }
 
+// Clear removes all structs from the map and resets maxId
 func (p *StructMap[V]) Clear() {
 	p.maxId = 1
 	p.cm.Clear()
 }
 
+// Add adds a new struct to the map, setting its ID if it is 0
 func (p *StructMap[V]) Add(v V) int64 {
 	if reflect.ValueOf(v).Kind() != reflect.Pointer {
 		panic(fmt.Sprintf("cant add %v need pointer", reflect.ValueOf(v).Type().Name()))
 	}
-	id := atomic.AddInt64(&p.maxId, 1)
+	val := reflect.ValueOf(v).Elem()
+	idField := val.FieldByName("Id")
+
+	if !idField.IsValid() || !idField.CanSet() {
+		panic("struct does not have a settable Id field")
+	}
+
+	var id int64
+	if idField.Int() == 0 {
+		id = atomic.AddInt64(&p.maxId, 1)
+		idField.SetInt(id)
+	} else {
+		id = idField.Int()
+	}
+
 	p.cm.Add(id, v)
 	return id
 }

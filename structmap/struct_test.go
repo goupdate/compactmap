@@ -6,6 +6,7 @@ import (
 )
 
 type ExampleStruct struct {
+	Id     int64
 	Field1 string
 	Field2 int
 }
@@ -242,6 +243,38 @@ func TestFindWithAndConditions(t *testing.T) {
 	results := storage.Find("AND", FindCondition{Field: "Field1", Value: "value1", Op: "equal"}, FindCondition{Field: "Field2", Value: 42, Op: "equal"})
 	if len(results) != 1 || results[0].Field1 != "value1" || results[0].Field2 != 42 {
 		t.Fatalf("expected to find 1 item with Field1 'value1' and Field2 42, got %d items", len(results))
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+	storage.Clear()
+
+	example1 := &ExampleStruct{Field1: "value1", Field2: 42, Id: 1}
+	example2 := &ExampleStruct{Field1: "value2", Field2: 43, Id: 2}
+	example3 := &ExampleStruct{Field1: "value3", Field2: 44, Id: 3}
+
+	storage.Add(example1)
+	storage.Add(example2)
+	storage.Add(example3)
+
+	// Update Field1 to "updated" for items where Field2 > 42
+	updatedCount := storage.Update("AND", []FindCondition{
+		{Field: "Field2", Value: 42, Op: "gt"},
+	}, map[string]interface{}{
+		"Field1": "updated",
+	})
+
+	if updatedCount != 2 {
+		t.Fatalf("expected to update 2 items, got %d", updatedCount)
+	}
+
+	// Check if the updates were applied correctly
+	results := storage.Find("OR", FindCondition{Field: "Id", Value: 2, Op: "equal"}, FindCondition{Field: "Id", Value: 3, Op: "equal"})
+	for _, result := range results {
+		if result.Field1 != "updated" {
+			t.Fatalf("expected Field1 to be 'updated', got %s", result.Field1)
+		}
 	}
 }
 
