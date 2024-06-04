@@ -193,6 +193,7 @@ func (p *StructMap[V]) Delete(id int64) {
 }
 
 func (p *StructMap[V]) Clear() {
+	p.maxId = 1
 	p.cm.Clear()
 }
 

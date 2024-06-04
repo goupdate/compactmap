@@ -269,3 +269,27 @@ func TestSave(t *testing.T) {
 	os.Remove("test_storage")
 	os.Remove("test_storagei")
 }
+
+func TestMaxId(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+	storage.Clear()
+
+	example := &ExampleStruct{Field1: "value1", Field2: 42}
+	storage.Add(example)
+
+	err := storage.Save()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	storage2, _ := New[*ExampleStruct]("test_storage", false)
+	id := storage2.GetMaxId()
+
+	if id != 2 {
+		t.Fatal("id should be = 2")
+	}
+
+	// Clean up test files
+	os.Remove("test_storage")
+	os.Remove("test_storagei")
+}
