@@ -1,24 +1,30 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"time"
 
 	"github.com/goupdate/compactmap/structmap"
+	"github.com/valyala/fasthttp"
+)
+
+const (
+	Timeout = 15 * time.Second
 )
 
 type Client[V any] struct {
 	baseURL string
-	client  *http.Client
+	client  *fasthttp.Client
 }
 
 func New[V any](baseURL string) *Client[V] {
 	return &Client[V]{
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client: &fasthttp.Client{
+			ReadTimeout:  Timeout,
+			WriteTimeout: Timeout,
+		},
 	}
 }
 
@@ -33,18 +39,47 @@ func (c *Client[V]) post(endpoint string, requestBody interface{}) ([]byte, erro
 		}
 	}
 
-	resp, err := c.client.Post(c.baseURL+endpoint, "application/json", bytes.NewBuffer(body))
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	req.SetRequestURI(c.baseURL + endpoint)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("application/json")
+	req.SetBody(body)
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	err = c.client.DoTimeout(req, resp, Timeout)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		errorMessage, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf(string(errorMessage))
+	if resp.StatusCode() != fasthttp.StatusOK {
+		return nil, fmt.Errorf(string(resp.Body()))
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	return resp.Body(), nil
+}
+
+func (c *Client[V]) get(endpoint string) ([]byte, error) {
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+	req.SetRequestURI(c.baseURL + endpoint)
+	req.Header.SetMethod("GET")
+
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	err := c.client.DoTimeout(req, resp, Timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != fasthttp.StatusOK {
+		return nil, fmt.Errorf(string(resp.Body()))
+	}
+
+	return resp.Body(), nil
 }
 
 func (c *Client[V]) Clear() error {
@@ -67,39 +102,23 @@ func (c *Client[V]) Add(item *V) (int64, error) {
 }
 
 func (c *Client[V]) Get(id int64) (*V, error) {
-	resp, err := c.client.Get(fmt.Sprintf("%s/api/get?id=%d", c.baseURL, id))
+	response, err := c.get(fmt.Sprintf("/api/get?id=%d", id))
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	buf, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf(string(buf))
-	}
-	//not found
-	if len(buf) == 0 {
-		return nil, err
+	if len(response) == 0 {
+		return nil, nil
 	}
 
 	var item V
-	err = json.Unmarshal(buf, &item)
+	err = json.Unmarshal(response, &item)
 	return &item, err
 }
 
 func (c *Client[V]) Delete(id int64) error {
-	resp, err := c.client.Get(fmt.Sprintf("%s/api/delete?id=%d", c.baseURL, id))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		errorMessage, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf(string(errorMessage))
-	}
-
-	return nil
+	_, err := c.get(fmt.Sprintf("/api/delete?id=%d", id))
+	return err
 }
 
 func (c *Client[V]) Update(condition string, where []structmap.FindCondition, fields map[string]interface{}) (int, error) {
@@ -173,18 +192,12 @@ func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V
 }
 
 func (c *Client[V]) Iterate() ([]V, error) {
-	resp, err := c.client.Get(fmt.Sprintf("%s/api/iterate", c.baseURL))
+	response, err := c.get("/api/iterate")
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		errorMessage, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf(string(errorMessage))
-	}
 
 	var results []V
-	err = json.NewDecoder(resp.Body).Decode(&results)
+	err = json.Unmarshal(response, &results)
 	return results, err
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/goupdate/compactmap/structmap"
 	"github.com/goupdate/compactmap/structmap/client"
@@ -15,6 +16,8 @@ type some1 struct {
 }
 
 func main() {
+	client.Timeout = 15 * time.Second
+
 	client := client.New[some1]("http://localhost:80")
 
 	// Clear the server storage
@@ -49,6 +52,7 @@ func main() {
 	log.Println("Deleted item")
 
 	val, err := client.Get(id)
+	assert.Nil(nil, err, "Expected no err")
 	assert.Nil(nil, val, "Expected not found item eq nil value")
 
 	// Test Update
