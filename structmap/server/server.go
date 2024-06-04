@@ -45,6 +45,8 @@ func New[V any](storageName string) (*Server[V], error) {
 
 	router := fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
 		switch string(ctx.Path()) {
+		case "/api/clear":
+			server.handleClear(ctx, storage)
 		case "/api/add":
 			server.handleAdd(ctx, storage)
 		case "/api/get":
@@ -114,6 +116,13 @@ func (s *Server[V]) logAction(ctx *fasthttp.RequestCtx, response ...interface{})
 	}
 }
 
+func (s *Server[V]) handleClear(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
+	s.logAction(ctx)
+
+	storage.Clear()
+	s.respondWithSuccess(ctx, nil)
+}
+
 func (s *Server[V]) handleAdd(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
 	s.logAction(ctx)
 
@@ -136,7 +145,7 @@ func (s *Server[V]) handleGet(ctx *fasthttp.RequestCtx, storage *structmap.Struc
 	}
 	item, found := storage.Get(id)
 	if !found {
-		s.respondWithError(ctx, "Item not found")
+		s.respondWithSuccess(ctx, nil)
 		return
 	}
 	s.respondWithSuccess(ctx, item)

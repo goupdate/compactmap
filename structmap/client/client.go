@@ -23,9 +23,14 @@ func New[V any](baseURL string) *Client[V] {
 }
 
 func (c *Client[V]) post(endpoint string, requestBody interface{}) ([]byte, error) {
-	body, err := json.Marshal(requestBody)
-	if err != nil {
-		return nil, err
+	var body []byte
+	var err error
+
+	if requestBody != nil {
+		body, err = json.Marshal(requestBody)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	resp, err := c.client.Post(c.baseURL+endpoint, "application/json", bytes.NewBuffer(body))
@@ -42,6 +47,11 @@ func (c *Client[V]) post(endpoint string, requestBody interface{}) ([]byte, erro
 	return ioutil.ReadAll(resp.Body)
 }
 
+func (c *Client[V]) Clear() error {
+	_, err := c.post("/api/clear", nil)
+	return err
+}
+
 func (c *Client[V]) Add(item *V) (int64, error) {
 	response, err := c.post("/api/add", item)
 	if err != nil {
@@ -56,25 +66,25 @@ func (c *Client[V]) Add(item *V) (int64, error) {
 	return result.Id, err
 }
 
-func (c *Client[V]) Get(id int64) (V, error) {
-	var zero V
+func (c *Client[V]) Get(id int64) (*V, error) {
 	resp, err := c.client.Get(fmt.Sprintf("%s/api/get?id=%d", c.baseURL, id))
 	if err != nil {
-		return zero, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
+	buf, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		errorMessage, _ := ioutil.ReadAll(resp.Body)
-		return zero, fmt.Errorf(string(errorMessage))
+		return nil, fmt.Errorf(string(buf))
+	}
+	//not found
+	if len(buf) == 0 {
+		return nil, err
 	}
 
-	buf, _ := ioutil.ReadAll(resp.Body)
-
 	var item V
-	//err = json.NewDecoder(resp.Body).Decode(item)
 	err = json.Unmarshal(buf, &item)
-	return item, err
+	return &item, err
 }
 
 func (c *Client[V]) Delete(id int64) error {

@@ -4,8 +4,8 @@ import (
 	"log"
 
 	"github.com/goupdate/compactmap/structmap"
-
 	"github.com/goupdate/compactmap/structmap/client"
+	"github.com/stretchr/testify/assert"
 )
 
 type some1 struct {
@@ -16,6 +16,13 @@ type some1 struct {
 
 func main() {
 	client := client.New[some1]("http://localhost:80")
+
+	// Clear the server storage
+	err := client.Clear()
+	if err != nil {
+		log.Fatalf("Failed to clear storage: %v", err)
+	}
+	log.Println("Cleared storage")
 
 	// Test Add
 	item := &some1{Aba: "test", Haba: 12}
@@ -30,6 +37,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get item: %v", err)
 	}
+	assert.Equal(nil, item.Aba, retrievedItem.Aba, "Field Aba should match")
+	assert.Equal(nil, item.Haba, retrievedItem.Haba, "Field Haba should match")
 	log.Printf("Retrieved item: %+v\n", retrievedItem)
 
 	// Test Delete
@@ -38,6 +47,9 @@ func main() {
 		log.Fatalf("Failed to delete item: %v", err)
 	}
 	log.Println("Deleted item")
+
+	val, err := client.Get(id)
+	assert.Nil(nil, val, "Expected not found item eq nil value")
 
 	// Test Update
 	item1 := &some1{Aba: "update_test", Haba: 50}
@@ -56,12 +68,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to update item: %v", err)
 	}
+	assert.Equal(nil, 1, updatedCount, "Expected one item to be updated")
 	log.Printf("Updated %d items\n", updatedCount)
 
 	updatedItem, err := client.Get(id1)
 	if err != nil {
 		log.Fatalf("Failed to get updated item: %v", err)
 	}
+	assert.Equal(nil, 60, updatedItem.Haba, "Expected Haba to be updated")
 	log.Printf("Updated item: %+v\n", updatedItem)
 
 	// Test SetField
@@ -74,6 +88,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get updated item: %v", err)
 	}
+	assert.Equal(nil, "setfield_test", updatedItem.Aba, "Expected Aba to be updated")
 	log.Printf("Updated item after SetField: %+v\n", updatedItem)
 
 	// Test SetFields
@@ -90,6 +105,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get updated item: %v", err)
 	}
+	assert.Equal(nil, "setfields_test", updatedItem.Aba, "Expected Aba to be updated")
+	assert.Equal(nil, 70, updatedItem.Haba, "Expected Haba to be updated")
 	log.Printf("Updated item after SetFields: %+v\n", updatedItem)
 
 	// Test Find
@@ -105,6 +122,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to find items: %v", err)
 	}
+	assert.Equal(nil, 1, len(results), "Expected one item to be found")
+	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
 	log.Printf("Found items: %+v\n", results)
 
 	// Test Iterate
@@ -112,5 +131,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to iterate items: %v", err)
 	}
+	assert.GreaterOrEqual(nil, len(results), 3, "Expected at least three items")
 	log.Printf("Iterated items: %+v\n", results)
 }

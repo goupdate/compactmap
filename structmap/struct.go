@@ -124,7 +124,15 @@ func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
 		if !f.IsValid() || !f.CanSet() {
 			return false
 		}
-		f.Set(reflect.ValueOf(value))
+		// Check and set the value with type conversion
+		fieldType := f.Type()
+		valueVal := reflect.ValueOf(value)
+
+		if valueVal.Type().ConvertibleTo(fieldType) {
+			f.Set(valueVal.Convert(fieldType))
+		} else {
+			panic(fmt.Sprintf("value of type %v is not assignable to type %v", valueVal.Type(), fieldType))
+		}
 	}
 	return true
 }
