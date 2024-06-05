@@ -100,21 +100,7 @@ func (p *StructMap[V]) SaveAs(name string) error {
 
 // SetField sets a specific field to a value for a struct by ID
 func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool {
-	p.Lock()
-	defer p.Unlock()
-
-	store, ex := p.cm.Get(id)
-	if !ex {
-		return false
-	}
-	val := reflect.Indirect(reflect.ValueOf(store))
-	//f := val.FieldByName(field)
-	f := FindFieldByName(val, field)
-	if !f.IsValid() || !f.CanSet() {
-		return false
-	}
-	f.Set(reflect.ValueOf(value))
-	return true
+	return p.SetFields(id, map[string]interface{}{field: value})
 }
 
 // SetFields sets multiple fields for a struct by ID
@@ -147,30 +133,49 @@ func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
 	return true
 }
 
-// Update updates multiple fields for structs that match the given conditions
 /*
+	Update updates multiple fields for structs that match the given conditions
+
+"condition" logic can be:
+
+	"" - doesnt matter
+	OR - where1 || where2 || where3 ...
+	AND - where1 && where2 && where3
+
+	Returns: elements updated
+*/
+func (p *StructMap[V]) Update(condition string, where []FindCondition, fields map[string]interface{}) int {
+	ids := p.UpdateCount(condition, where, fields, 0)
+	return len(ids)
+}
+
+/*
+	Update updates multiple fields for structs that match the given conditions
+
 condition logic can be:
 "" - doesnt matter
 OR - where1 || where2 || where3 ...
 AND - where1 && where2 && where3
+
+elCount - count of first elements to update, 0 if no limit
+
+Returns: slice of Ids of updated elements
 */
-func (p *StructMap[V]) Update(condition string, where []FindCondition, fields map[string]interface{}) int {
-	elems := p.Find(condition, where...)
-	updatedCount := 0
-
-	for _, elem := range elems {
-		idField := reflect.ValueOf(elem).Elem().FieldByName("Id")
-		if !idField.IsValid() {
-			continue
+func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fields map[string]interface{}, elCount int) []int64 {
+	var ids []int64
+	count := 0
+	p.FindFn(condition, where, func(id int64, v V) bool {
+		ids = append(ids, id)
+		count++
+		if elCount > 0 && count == elCount {
+			return false
 		}
-
-		id := idField.Interface().(int64)
-		if p.SetFields(id, fields) {
-			updatedCount++
-		}
+		return true
+	})
+	for _, id := range ids {
+		p.SetFields(id, fields)
 	}
-
-	return updatedCount
+	return ids
 }
 
 // GetAll retrieves all structs from the map
@@ -243,6 +248,17 @@ AND - where1 && where2 && where3
 */
 func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 	var ret []V
+	p.FindFn(condition, where, func(key int64, v V) bool {
+		ret = append(ret, v)
+		return true
+	})
+	return ret
+}
+
+/*
+Same as Find but with callback function for found elements
+*/
+func (p *StructMap[V]) FindFn(condition string, where []FindCondition, fn func(key int64, v V) bool) {
 	p.cm.Iterate(func(key int64, v V) bool {
 		match := false
 		val := reflect.Indirect(reflect.ValueOf(v))
@@ -275,11 +291,12 @@ func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 		}
 
 		if match {
-			ret = append(ret, v)
+			if !fn(key, v) {
+				return false
+			}
 		}
 		return true
 	})
-	return ret
 }
 
 // Iterate iterates over all structs in the map and applies the given function

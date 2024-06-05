@@ -144,6 +144,32 @@ func (c *Client[V]) Update(condition string, where []structmap.FindCondition, fi
 	return result.Updated, err
 }
 
+// count - limit of elements to update
+func (c *Client[V]) UpdateCount(condition string, where []structmap.FindCondition, fields map[string]interface{}, elCount int) ([]int64, error) {
+	req := struct {
+		Count     int                       `json:"count"`
+		Condition string                    `json:"condition"`
+		Where     []structmap.FindCondition `json:"where"`
+		Fields    map[string]interface{}    `json:"fields"`
+	}{
+		Count:     elCount,
+		Condition: condition,
+		Where:     where,
+		Fields:    fields,
+	}
+
+	response, err := c.post("/api/updatecount", req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		Updated []int64 `json:"updated"`
+	}
+	err = json.Unmarshal(response, &result)
+	return result.Updated, err
+}
+
 func (c *Client[V]) SetField(id int64, field string, value interface{}) error {
 	req := struct {
 		Id    int64       `json:"id"`

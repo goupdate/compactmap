@@ -63,6 +63,8 @@ func New[V any](storageName string) (*Server[V], error) {
 			server.handleDelete(ctx, storage)
 		case "/api/update":
 			server.handleUpdate(ctx, storage)
+		case "/api/updatecount":
+			server.handleUpdateCount(ctx, storage)
 		case "/api/setfield":
 			server.handleSetField(ctx, storage)
 		case "/api/setfields":
@@ -211,6 +213,23 @@ func (s *Server[V]) handleUpdate(ctx *fasthttp.RequestCtx, storage *structmap.St
 	}
 	count := storage.Update(req.Condition, req.Where, req.Fields)
 	s.respondWithSuccess(ctx, map[string]int{"updated": count})
+}
+
+func (s *Server[V]) handleUpdateCount(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
+	s.logAction(ctx)
+
+	var req struct {
+		Count     int                       `json:"count"` //how many elements to ypdate
+		Condition string                    `json:"condition"`
+		Where     []structmap.FindCondition `json:"where"`
+		Fields    map[string]interface{}    `json:"fields"`
+	}
+	if err := json.Unmarshal(ctx.PostBody(), &req); err != nil {
+		s.respondWithError(ctx, err.Error())
+		return
+	}
+	ids := storage.UpdateCount(req.Condition, req.Where, req.Fields, req.Count)
+	s.respondWithSuccess(ctx, map[string][]int64{"updated": ids})
 }
 
 func (s *Server[V]) handleSetField(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {

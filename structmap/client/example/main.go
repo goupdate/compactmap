@@ -75,11 +75,40 @@ func main() {
 	assert.Equal(nil, 1, updatedCount, "Expected one item to be updated")
 	log.Printf("Updated %d items\n", updatedCount)
 
+	// --- updatecount
+	item = &some1{Aba: "test", Haba: 12}
+	item2 := &some1{Aba: "test2", Haba: 22}
+	id, err = client.Add(item)
+	if err != nil {
+		log.Fatalf("Failed to add item: %v", err)
+	}
+	id, err = client.Add(item2)
+	if err != nil {
+		log.Fatalf("Failed to add item: %v", err)
+	}
+
+	conditions = []structmap.FindCondition{
+		{Field: "Aba", Value: "test", Op: "contains"},
+	}
+	fields = map[string]interface{}{
+		"Haba": 90,
+	}
+	updated, err := client.UpdateCount("AND", conditions, fields, 2)
+	if err != nil {
+		log.Fatalf("Failed to update item: %v", err)
+	}
+	if len(updated) != 2 {
+		log.Fatalf("expected 2 ids: %+v\n", updated)
+	}
+	log.Printf("Updated %+v items\n", updated)
+
+	// ----
+
 	updatedItem, err := client.Get(id1)
 	if err != nil {
 		log.Fatalf("Failed to get updated item: %v", err)
 	}
-	assert.Equal(nil, 60, updatedItem.Haba, "Expected Haba to be updated")
+	assert.Equal(nil, 90, updatedItem.Haba, "Expected Haba to be updated")
 	log.Printf("Updated item: %+v\n", updatedItem)
 
 	// Test SetField
@@ -114,7 +143,7 @@ func main() {
 	log.Printf("Updated item after SetFields: %+v\n", updatedItem)
 
 	// Test Find
-	item2 := &some1{Aba: "find_test1", Haba: 80}
+	item2 = &some1{Aba: "find_test1", Haba: 80}
 	item3 := &some1{Aba: "find_test2", Haba: 90}
 	client.Add(item2)
 	client.Add(item3)
