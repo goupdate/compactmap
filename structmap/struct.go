@@ -194,8 +194,6 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	v2Val := reflect.Indirect(reflect.ValueOf(v2))
 
 	switch op {
-	case "equal", "eq", "=":
-		return reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
 	case "gt", "more", ">":
 		if v1Val.Kind() == reflect.Int && v2Val.Kind() == reflect.Int {
 			return v1Val.Int() > v2Val.Int()
@@ -216,8 +214,10 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		str1, ok1 := v1Val.Interface().(string)
 		str2, ok2 := v2Val.Interface().(string)
 		return ok1 && ok2 && strings.Contains(str1, str2)
-	default:
-		panic("unknown field condition: " + op)
+	case "equal", "eq", "=":
+		fallthrough
+	default: // "="
+		return reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
 	}
 	return false
 }
@@ -238,6 +238,7 @@ type FindCondition struct {
 	Field string
 	Value interface{}
 	Op    string // "equal", "eq", =, "gt", "more", >, "lt", "less", <
+	// if op is "" eq not set, used "equal" operator
 }
 
 /*

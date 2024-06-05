@@ -159,6 +159,21 @@ func main() {
 	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
 	log.Printf("Found items: %+v\n", results)
 
+	// Test find no op
+
+	conditions = []structmap.FindCondition{
+		{Field: "Aba", Value: "find_test1", Op: ""},
+	}
+	results, err = client.Find("AND", conditions)
+	if err != nil {
+		log.Fatalf("Failed to find items: %v", err)
+	}
+	assert.Equal(nil, 1, len(results), "Expected one item to be found")
+	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
+	log.Printf("Found items: %+v\n", results)
+
+	//test find
+
 	conditions = []structmap.FindCondition{
 		{Field: "aba", Value: "find_test1", Op: "equal"},
 	}
