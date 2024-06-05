@@ -122,6 +122,12 @@ func (c *Client[V]) Delete(id int64) error {
 }
 
 func (c *Client[V]) Update(condition string, where []structmap.FindCondition, fields map[string]interface{}) (int, error) {
+	switch condition {
+	case "AND", "OR":
+	default:
+		panic("unknown condition: " + condition)
+	}
+
 	req := struct {
 		Condition string                    `json:"condition"`
 		Where     []structmap.FindCondition `json:"where"`
@@ -146,6 +152,12 @@ func (c *Client[V]) Update(condition string, where []structmap.FindCondition, fi
 
 // count - limit of elements to update
 func (c *Client[V]) UpdateCount(condition string, where []structmap.FindCondition, fields map[string]interface{}, elCount int) ([]int64, error) {
+	switch condition {
+	case "AND", "OR":
+	default:
+		panic("unknown condition: " + condition)
+	}
+
 	req := struct {
 		Count     int                       `json:"count"`
 		Condition string                    `json:"condition"`
@@ -199,6 +211,12 @@ func (c *Client[V]) SetFields(id int64, fields map[string]interface{}) error {
 }
 
 func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V, error) {
+	switch condition {
+	case "AND", "OR":
+	default:
+		panic("unknown condition: " + condition)
+	}
+
 	req := struct {
 		Condition string                    `json:"condition"`
 		Where     []structmap.FindCondition `json:"where"`

@@ -275,18 +275,19 @@ func (p *StructMap[V]) FindFn(condition string, where []FindCondition, fn func(k
 			// Determine if the condition is met
 			isMatch := compareValues(f.Interface(), cond.Value, cond.Op)
 
-			if condition == "AND" {
+			switch condition {
+			case "AND":
 				if !isMatch {
 					match = false
 					break
 				}
 				match = true
-			} else if condition == "OR" {
+			case "OR":
 				if isMatch {
 					match = true
 					break
 				}
-			} else {
+			default:
 				match = isMatch
 			}
 		}
