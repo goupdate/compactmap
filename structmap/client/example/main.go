@@ -130,6 +130,17 @@ func main() {
 	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
 	log.Printf("Found items: %+v\n", results)
 
+	conditions = []structmap.FindCondition{
+		{Field: "aba", Value: "find_test1", Op: "equal"},
+	}
+	results, err = client.Find("AND", conditions)
+	if err != nil {
+		log.Fatalf("Failed to find case-insensitive items: %v", err)
+	}
+	assert.Equal(nil, 1, len(results), "Expected one item to be found")
+	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
+	log.Printf("Found case-insensitive items: %+v\n", results)
+
 	// Test Iterate
 	results, err = client.All()
 	if err != nil {

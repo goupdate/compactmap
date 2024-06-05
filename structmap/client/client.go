@@ -191,13 +191,13 @@ func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V
 	return results, err
 }
 
-func (c *Client[V]) All() ([]*V, error) {
+func (c *Client[V]) All() ([]V, error) {
 	response, err := c.get("/api/all")
 	if err != nil {
 		return nil, err
 	}
 
-	var results []*V
+	var results []V
 	err = json.Unmarshal(response, &results)
 	return results, err
 }
