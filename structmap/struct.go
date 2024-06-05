@@ -78,7 +78,7 @@ func (p *StructMap[V]) GetMaxId() int64 {
 
 // Save stores the current state of the map to a file
 func (p *StructMap[V]) Save() error {
-	return p.SaveAs(p.storageFile + "i")
+	return p.SaveAs(p.storageFile)
 }
 
 // Save stores the current state of the map to a file
@@ -87,11 +87,11 @@ func (p *StructMap[V]) SaveAs(name string) error {
 	defer p.Unlock()
 
 	p.info.AddOrSet(1, p.maxId)
-	err := p.cm.Save(p.storageFile)
+	err := p.cm.Save(name)
 	if err != nil {
 		return err
 	}
-	err2 := p.info.Save(name)
+	err2 := p.info.Save(name + "i")
 	if err2 != nil {
 		return err2
 	}
