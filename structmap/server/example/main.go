@@ -10,6 +10,7 @@ type some1 struct {
 	Id   int64
 	Aba  string
 	Haba int
+	Bol  bool
 }
 
 func main() {

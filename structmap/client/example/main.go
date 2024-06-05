@@ -13,6 +13,7 @@ type some1 struct {
 	Id   int64  `json:"id"`
 	Aba  string `json:"aba"`
 	Haba int    `json:"haba"`
+	Bol  bool   `json:"bol"`
 }
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	log.Println("Cleared storage")
 
 	// Test Add
-	item := &some1{Aba: "test", Haba: 12}
+	item := &some1{Aba: "test", Haba: 12, Bol: true}
 	id, err := client.Add(item)
 	if err != nil {
 		log.Fatalf("Failed to add item: %v", err)
@@ -143,8 +144,8 @@ func main() {
 	log.Printf("Updated item after SetFields: %+v\n", updatedItem)
 
 	// Test Find
-	item2 = &some1{Aba: "find_test1", Haba: 80}
-	item3 := &some1{Aba: "find_test2", Haba: 90}
+	item2 = &some1{Aba: "find_test1", Haba: 80, Bol: true}
+	item3 := &some1{Aba: "find_test2", Haba: 90, Bol: false}
 	client.Add(item2)
 	client.Add(item3)
 
@@ -158,6 +159,31 @@ func main() {
 	assert.Equal(nil, 1, len(results), "Expected one item to be found")
 	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
 	log.Printf("Found items: %+v\n", results)
+
+	// test find bol true
+	conditions = []structmap.FindCondition{
+		{Field: "Bol", Value: true, Op: "equal"},
+	}
+	results, err = client.Find("AND", conditions)
+	if err != nil {
+		log.Fatalf("Failed to find items: %v", err)
+	}
+	assert.Equal(nil, 1, len(results), "Expected one item to be found")
+	assert.Equal(nil, "find_test1", results[0].Aba, "Expected Aba to match")
+	log.Printf("Found items: %+v\n", results)
+
+	// test find bol false
+	conditions = []structmap.FindCondition{
+		{Field: "Bol", Value: false, Op: "equal"},
+		{Field: "Aba", Value: "find_test2", Op: "equal"},
+	}
+	results, err = client.Find("AND", conditions)
+	if err != nil {
+		log.Fatalf("Failed to find items: %v", err)
+	}
+	log.Printf("Found items: %+v\n", results)
+	assert.Equal(nil, 1, len(results), "Expected one item to be found")
+	assert.Equal(nil, "find_test2", results[0].Aba, "Expected Aba to match")
 
 	// Test find no op
 
