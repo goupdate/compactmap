@@ -108,7 +108,8 @@ func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool 
 		return false
 	}
 	val := reflect.Indirect(reflect.ValueOf(store))
-	f := val.FieldByName(field)
+	//f := val.FieldByName(field)
+	f := findFieldByName(val, field)
 	if !f.IsValid() || !f.CanSet() {
 		return false
 	}
