@@ -109,7 +109,7 @@ func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool 
 	}
 	val := reflect.Indirect(reflect.ValueOf(store))
 	//f := val.FieldByName(field)
-	f := findFieldByName(val, field)
+	f := FindFieldByName(val, field)
 	if !f.IsValid() || !f.CanSet() {
 		return false
 	}
@@ -130,7 +130,7 @@ func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
 
 	for field, value := range fields {
 		//f := val.FieldByName(field)
-		f := findFieldByName(val, field)
+		f := FindFieldByName(val, field)
 		if !f.IsValid() || !f.CanSet() {
 			return false
 		}
@@ -218,7 +218,7 @@ func compareValues(v1, v2 interface{}, op string) bool {
 }
 
 // findFieldByName finds a struct field by name, case-insensitively
-func findFieldByName(val reflect.Value, name string) reflect.Value {
+func FindFieldByName(val reflect.Value, name string) reflect.Value {
 	valType := val.Type()
 	for i := 0; i < valType.NumField(); i++ {
 		field := valType.Field(i)
@@ -249,7 +249,7 @@ func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 
 		for _, cond := range where {
 			//f := val.FieldByName(cond.Field)
-			f := findFieldByName(val, cond.Field)
+			f := FindFieldByName(val, cond.Field)
 			if !f.IsValid() {
 				match = false
 				break
