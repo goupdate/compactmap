@@ -99,9 +99,13 @@ func (s *Server[V]) EnableBackupsEvery(interval time.Duration, storeBackups int)
 	}
 	s.backupsTicker = time.NewTicker(interval)
 	go func() {
+		defer zipologger.HandlePanic()
+
 		num := 0
-		for _ = range s.backupsTicker.C {
-			err := s.storage.SaveAs(s.storageName + ".backup" + fmt.Sprintf("%d", num))
+		for range s.backupsTicker.C {
+			fname := s.storageName + ".backup" + fmt.Sprintf("%d", num)
+			s.log.Print("Autobackup to " + fname)
+			err := s.storage.SaveAs(fname)
 			if err != nil {
 				s.log.Printf("ERROR: %v", err.Error())
 			}

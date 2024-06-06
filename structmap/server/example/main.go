@@ -37,6 +37,8 @@ func main() {
 	defer ctrl.DeferThisToWaitCtrlC()
 
 	go func() {
+		defer zipologger.HandlePanic()
+
 		srv := srv.GetFasthttpServer()
 		if srv != nil {
 			err := srv.ListenAndServe(":80")
