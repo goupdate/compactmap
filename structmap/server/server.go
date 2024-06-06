@@ -43,7 +43,7 @@ func New[V any](storageName string) (*Server[V], error) {
 		return nil, fmt.Errorf("Failed to initialize storage: %v", err)
 	}
 
-	log := zipologger.NewLogger("./logs/structmap_server.log", 5, 5, 5, false)
+	log := zipologger.NewLogger("./logs/server_api.log", 5, 5, 5, false)
 
 	server := &Server[V]{
 		storage:     storage,
@@ -153,15 +153,11 @@ func (s *Server[V]) logAction(ctx *fasthttp.RequestCtx, response ...interface{})
 }
 
 func (s *Server[V]) handleClear(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	storage.Clear()
 	s.respondWithSuccess(ctx, nil)
 }
 
 func (s *Server[V]) handleAdd(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var item V
 	if err := json.Unmarshal(ctx.PostBody(), &item); err != nil {
 		s.respondWithError(ctx, err.Error())
@@ -172,8 +168,6 @@ func (s *Server[V]) handleAdd(ctx *fasthttp.RequestCtx, storage *structmap.Struc
 }
 
 func (s *Server[V]) handleGet(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	id, err := strconv.ParseInt(string(ctx.FormValue("id")), 10, 64)
 	if err != nil {
 		s.respondWithError(ctx, err.Error())
@@ -188,8 +182,6 @@ func (s *Server[V]) handleGet(ctx *fasthttp.RequestCtx, storage *structmap.Struc
 }
 
 func (s *Server[V]) handleDelete(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	id, err := strconv.ParseInt(string(ctx.FormValue("id")), 10, 64)
 	if err != nil {
 		s.respondWithError(ctx, err.Error())
@@ -200,8 +192,6 @@ func (s *Server[V]) handleDelete(ctx *fasthttp.RequestCtx, storage *structmap.St
 }
 
 func (s *Server[V]) handleUpdate(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var req struct {
 		Condition string                    `json:"condition"`
 		Where     []structmap.FindCondition `json:"where"`
@@ -216,8 +206,6 @@ func (s *Server[V]) handleUpdate(ctx *fasthttp.RequestCtx, storage *structmap.St
 }
 
 func (s *Server[V]) handleUpdateCount(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var req struct {
 		Count     int                       `json:"count"` //how many elements to ypdate
 		Condition string                    `json:"condition"`
@@ -233,8 +221,6 @@ func (s *Server[V]) handleUpdateCount(ctx *fasthttp.RequestCtx, storage *structm
 }
 
 func (s *Server[V]) handleSetField(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var req struct {
 		Id    int64       `json:"id"`
 		Field string      `json:"field"`
@@ -252,8 +238,6 @@ func (s *Server[V]) handleSetField(ctx *fasthttp.RequestCtx, storage *structmap.
 }
 
 func (s *Server[V]) handleSetFields(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var req struct {
 		Id     int64                  `json:"id"`
 		Fields map[string]interface{} `json:"fields"`
@@ -270,8 +254,6 @@ func (s *Server[V]) handleSetFields(ctx *fasthttp.RequestCtx, storage *structmap
 }
 
 func (s *Server[V]) handleFind(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var req struct {
 		Condition string                    `json:"condition"`
 		Where     []structmap.FindCondition `json:"where"`
@@ -285,8 +267,6 @@ func (s *Server[V]) handleFind(ctx *fasthttp.RequestCtx, storage *structmap.Stru
 }
 
 func (s *Server[V]) handleAll(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
-	s.logAction(ctx)
-
 	var results = storage.GetAll()
 	s.respondWithSuccess(ctx, results)
 }
