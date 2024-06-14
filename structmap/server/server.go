@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -149,7 +150,18 @@ func (s *Server[V]) logAction(ctx *fasthttp.RequestCtx, response ...interface{})
 		if len(response) > 0 {
 			ret := ""
 			for _, r := range response {
-				ret += fmt.Sprintf("%+v ", r)
+				rt := reflect.ValueOf(r)
+				switch rt.Type().Kind() {
+				case reflect.Slice:
+					retv := ""
+					for i := 0; i < rt.Len(); i++ {
+						el := rt.Index(i)
+						retv += fmt.Sprintf("%+v ", reflect.Indirect(el.Elem()))
+					}
+					ret += retv
+				default:
+					ret += fmt.Sprintf("%+v ", r)
+				}
 			}
 			s.log.Printf("%s", ret)
 		}
@@ -266,6 +278,7 @@ func (s *Server[V]) handleFind(ctx *fasthttp.RequestCtx, storage *structmap.Stru
 		s.respondWithError(ctx, err.Error())
 		return
 	}
+
 	results := storage.Find(req.Condition, req.Where...)
 	s.respondWithSuccess(ctx, results)
 }

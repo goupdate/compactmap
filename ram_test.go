@@ -26,7 +26,7 @@ func TestRamUsage(t *testing.T) {
 
 	m := NewCompactMap[int32, int32]()
 	for i := int32(0); i < N; i++ {
-		m.Add(i, i*2)
+		m.AddOrSet(i, i*2)
 	}
 
 	runtime.GC()

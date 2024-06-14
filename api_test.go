@@ -2,14 +2,15 @@ package compactmap
 
 import (
 	"testing"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAddAndGet(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	cm.Add(1, 100)
-	cm.Add(2, 200)
-	cm.Add(3, 300)
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
+	cm.AddOrSet(3, 300)
 
 	value, exists := cm.Get(1)
 	assert.True(t, exists, "Value for key 1 should exist")
@@ -26,8 +27,8 @@ func TestAddAndGet(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	cm.Add(1, 100)
-	cm.Add(2, 200)
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
 	cm.Delete(1)
 
 	_, exists := cm.Get(1)
@@ -40,9 +41,9 @@ func TestDelete(t *testing.T) {
 
 func TestIterate(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	cm.Add(1, 100)
-	cm.Add(2, 200)
-	cm.Add(3, 300)
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
+	cm.AddOrSet(3, 300)
 
 	var result []int
 	cm.Iterate(func(key, value int) bool {
@@ -55,8 +56,8 @@ func TestIterate(t *testing.T) {
 
 func TestExist(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	cm.Add(1, 100)
-	cm.Add(2, 200)
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
 
 	exists := cm.Exist(1)
 	assert.True(t, exists, "Key 1 should exist")
@@ -67,9 +68,9 @@ func TestExist(t *testing.T) {
 
 func TestSortOrder(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	cm.Add(3, 300)
-	cm.Add(1, 100)
-	cm.Add(2, 200)
+	cm.AddOrSet(3, 300)
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
 
 	var result []int
 	cm.Iterate(func(key, value int) bool {
@@ -82,8 +83,8 @@ func TestSortOrder(t *testing.T) {
 
 func TestSaveAndLoad(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	cm.Add(1, 100)
-	cm.Add(2, 200)
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
 	cm.Save("test_data.dat")
 
 	cm2 := NewCompactMap[int, int]()

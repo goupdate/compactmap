@@ -222,15 +222,64 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	return false
 }
 
-// findFieldByName finds a struct field by name, case-insensitively
+// FindFieldByName searches for a field by name in a given value.
+// It searches through the entire depth of nested structures.
 func FindFieldByName(val reflect.Value, name string) reflect.Value {
+	// Attempt to find the nested field first
+	if strings.Contains(name, ".") {
+		parts := strings.Split(name, ".")
+		return findNestedField(val, parts)
+	}
+
+	// If not nested, search for the direct field
+	return findFieldByName(val, name)
+}
+
+// findNestedField recursively searches for a nested field by following the parts slice.
+func findNestedField(val reflect.Value, parts []string) reflect.Value {
+	if len(parts) == 0 {
+		return val
+	}
+
+	currentPart := parts[0]
+	remainingParts := parts[1:]
+
+	field := findFieldByName(val, currentPart)
+	if !field.IsValid() || len(remainingParts) == 0 {
+		return field
+	}
+
+	return findNestedField(field, remainingParts)
+}
+
+// findFieldByName searches for a single field by name in a given value.
+// If not found directly, it searches within nested structs.
+func findFieldByName(val reflect.Value, name string) reflect.Value {
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
 	valType := val.Type()
+	if valType.Kind() != reflect.Struct {
+		return reflect.Value{}
+	}
+
 	for i := 0; i < valType.NumField(); i++ {
 		field := valType.Field(i)
+		fieldVal := val.Field(i)
 		if strings.EqualFold(field.Name, name) {
-			return val.Field(i)
+			return fieldVal
+		}
+
+		// If the field is a nested struct, search within it
+		if fieldVal.Kind() == reflect.Struct || (fieldVal.Kind() == reflect.Ptr && fieldVal.Elem().Kind() == reflect.Struct) {
+			nestedField := findFieldByName(fieldVal, name)
+			if nestedField.IsValid() {
+				return nestedField
+			}
 		}
 	}
+
 	return reflect.Value{}
 }
 
@@ -265,7 +314,6 @@ func (p *StructMap[V]) FindFn(condition string, where []FindCondition, fn func(k
 		val := reflect.Indirect(reflect.ValueOf(v))
 
 		for _, cond := range where {
-			//f := val.FieldByName(cond.Field)
 			f := FindFieldByName(val, cond.Field)
 			if !f.IsValid() {
 				match = false

@@ -17,6 +17,6 @@ func BenchmarkStandardMap(b *testing.B) {
 func BenchmarkCompactMap(b *testing.B) {
 	cm := NewCompactMap[int, int]()
 	for i := 0; i < b.N; i++ {
-		cm.Add(rand.Intn(b.N), rand.Intn(b.N))
+		cm.AddOrSet(rand.Intn(b.N), rand.Intn(b.N))
 	}
 }

@@ -9,7 +9,7 @@ import (
 func TestAll(t *testing.T) {
 	m := NewCompactMap[int32, int32]()
 	for i := int32(0); i < 10; i++ {
-		m.Add(i, 100+i)
+		m.AddOrSet(i, 100+i)
 	}
 
 	value, found := m.Get(5)

@@ -2,6 +2,7 @@ package structmap
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -325,4 +326,85 @@ func TestMaxId(t *testing.T) {
 	// Clean up test files
 	os.Remove("test_storage")
 	os.Remove("test_storagei")
+}
+
+func TestFindFieldByName(t *testing.T) {
+	test := &Test{
+		Id: 2,
+		A:  3,
+		B:  "4",
+		N:  &Nested{C: 5},
+	}
+
+	val := reflect.ValueOf(test).Elem()
+
+	tests := []struct {
+		name     string
+		field    string
+		expected interface{}
+	}{
+		{"Find nested field N.C", "N.C", 5},
+		{"Find direct field A", "A", 3},
+		{"Find non-existent field D", "D", nil},
+		{"Find field in nested struct", "C", 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := FindFieldByName(val, tt.field)
+			if tt.expected == nil {
+				if field.IsValid() {
+					t.Errorf("Expected field %s to be invalid, but got valid field", tt.field)
+				}
+			} else {
+				if !field.IsValid() {
+					t.Errorf("Expected field %s to be valid, but got invalid field", tt.field)
+				} else if !reflect.DeepEqual(field.Interface(), tt.expected) {
+					t.Errorf("Expected %v, but got %v for field %s", tt.expected, field.Interface(), tt.field)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateFieldsMapFor2(t *testing.T) {
+	test := &Test{
+		Id: 2,
+		A:  3,
+		B:  "4",
+		N:  &Nested{C: 5},
+	}
+	fields := []string{"A", "B", "C"}
+	expected := map[string]interface{}{
+		"A":   3,
+		"B":   "4",
+		"N.C": 5,
+	}
+
+	result := GenerateFieldsMapFor(test, fields, true)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Expected %v, but got %v", expected, result)
+	}
+}
+
+func TestGenerateFieldsMapFor3(t *testing.T) {
+	test := &Test{
+		Id: 2,
+		A:  3,
+		B:  "4",
+		N:  &Nested{C: 5},
+	}
+	fields := []string{"A", "B", "C"}
+	expected := map[string]interface{}{
+		"A": 3,
+		"B": "4",
+		"C": 5,
+	}
+
+	result := GenerateFieldsMapFor(test, fields)
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("Expected %v, but got %v", expected, result)
+	}
 }
