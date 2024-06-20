@@ -193,6 +193,16 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val := reflect.Indirect(reflect.ValueOf(v1))
 	v2Val := reflect.Indirect(reflect.ValueOf(v2))
 
+	// Handle nil values
+	if !v1Val.IsValid() || !v2Val.IsValid() {
+		switch op {
+		case "equal", "eq", "=":
+			return !v1Val.IsValid() && !v2Val.IsValid() // both are nil
+		default:
+			return false
+		}
+	}
+
 	switch op {
 	case "gt", "more", ">":
 		if v1Val.Kind() == reflect.Int && v2Val.Kind() == reflect.Int {
