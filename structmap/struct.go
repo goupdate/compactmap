@@ -188,7 +188,13 @@ func (p *StructMap[V]) GetAll() []V {
 	return ret
 }
 
-// compareValues compares two values based on the given operator
+/*
+	compareValues compares two values based on the given operator
+
+result := compareValues(5, 3, "gt") // Returns true
+result := compareValues("hello", "ell", "contains") // Returns true
+result := compareValues(10, []int{1, 2, 10}, "in") // Returns true
+*/
 func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val := reflect.Indirect(reflect.ValueOf(v1))
 	v2Val := reflect.Indirect(reflect.ValueOf(v2))
@@ -203,6 +209,16 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		}
 	}
 
+	// Define a helper function to check if a value exists in a slice
+	inSlice := func(value reflect.Value, slice reflect.Value) bool {
+		for i := 0; i < slice.Len(); i++ {
+			if reflect.DeepEqual(value.Interface(), slice.Index(i).Interface()) {
+				return true
+			}
+		}
+		return false
+	}
+
 	switch op {
 	case "gt", "more", ">":
 		if v1Val.Kind() == reflect.Int && v2Val.Kind() == reflect.Int {
@@ -211,6 +227,8 @@ func compareValues(v1, v2 interface{}, op string) bool {
 			return v1Val.Float() > v2Val.Float()
 		} else if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
 			return v1Val.String() > v2Val.String()
+		} else if v1Val.Kind() == reflect.Bool && v2Val.Kind() == reflect.Bool {
+			return v1Val.Bool() && !v2Val.Bool()
 		}
 	case "lt", "less", "<":
 		if v1Val.Kind() == reflect.Int && v2Val.Kind() == reflect.Int {
@@ -219,16 +237,53 @@ func compareValues(v1, v2 interface{}, op string) bool {
 			return v1Val.Float() < v2Val.Float()
 		} else if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
 			return v1Val.String() < v2Val.String()
+		} else if v1Val.Kind() == reflect.Bool && v2Val.Kind() == reflect.Bool {
+			return !v1Val.Bool() && v2Val.Bool()
 		}
 	case "like", "contains":
 		str1, ok1 := v1Val.Interface().(string)
 		str2, ok2 := v2Val.Interface().(string)
 		return ok1 && ok2 && strings.Contains(str1, str2)
+	case "in":
+		switch v2Val.Kind() {
+		case reflect.Slice, reflect.Array:
+			return inSlice(v1Val, v2Val)
+		}
 	case "equal", "eq", "=":
 		fallthrough
 	default: // "="
 		return reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
 	}
+
+	// Check for custom comparison methods
+	v1Interface := v1Val.Interface()
+	v2Interface := v2Val.Interface()
+
+	if less, ok := v1Interface.(interface{ Less(interface{}) bool }); ok {
+		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
+			switch op {
+			case "gt", "more", ">":
+				return !less.Less(v2Interface) && !eq.Equal(v2Interface)
+			case "lt", "less", "<":
+				return less.Less(v2Interface)
+			case "equal", "eq", "=":
+				return eq.Equal(v2Interface)
+			case "in":
+				switch v2Val.Kind() {
+				case reflect.Slice, reflect.Array:
+					for i := 0; i < v2Val.Len(); i++ {
+						if eq.Equal(v2Val.Index(i).Interface()) {
+							return true
+						}
+					}
+					return false
+				}
+			default:
+				return false
+			}
+		}
+	}
+
 	return false
 }
 
@@ -296,18 +351,18 @@ func findFieldByName(val reflect.Value, name string) reflect.Value {
 type FindCondition struct {
 	Field string
 	Value interface{}
-	Op    string // "equal", "eq", =, "gt", "more", >, "lt", "less", <
+	Op    string // "equal", "eq", =, "gt", "more", >, "lt", "less", <, "in"
 	// if op is "" eq not set, used "equal" operator
 }
 
 /*
 condition logic can be:
-"" - doesnt matter
 OR - where1 || where2 || where3 ...
-AND - where1 && where2 && where3
+AND - where1 && where2 && where3 - default also for ""
 */
 func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 	var ret []V
+
 	p.FindFn(condition, where, func(key int64, v V) bool {
 		ret = append(ret, v)
 		return true
@@ -319,8 +374,10 @@ func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 Same as Find but with callback function for found elements
 */
 func (p *StructMap[V]) FindFn(condition string, where []FindCondition, fn func(key int64, v V) bool) {
+	condition = strings.ToUpper(condition)
+
 	p.cm.Iterate(func(key int64, v V) bool {
-		match := false
+		match := (condition != "OR")
 		val := reflect.Indirect(reflect.ValueOf(v))
 
 		for _, cond := range where {
@@ -334,19 +391,18 @@ func (p *StructMap[V]) FindFn(condition string, where []FindCondition, fn func(k
 			isMatch := compareValues(f.Interface(), cond.Value, cond.Op)
 
 			switch condition {
-			case "AND":
-				if !isMatch {
-					match = false
-					break
-				}
-				match = true
 			case "OR":
 				if isMatch {
 					match = true
 					break
 				}
+			case "AND": //default
+				fallthrough
 			default:
-				match = isMatch
+				if !isMatch {
+					match = false
+					break
+				}
 			}
 		}
 

@@ -10,6 +10,7 @@ type ExampleStruct struct {
 	Id     int64
 	Field1 string
 	Field2 int
+	Field3 bool
 }
 
 func TestNew(t *testing.T) {
@@ -406,5 +407,87 @@ func TestGenerateFieldsMapFor3(t *testing.T) {
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("Expected %v, but got %v", expected, result)
+	}
+}
+
+func TestFindBool(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+	storage.Clear()
+
+	example1 := &ExampleStruct{Field1: "value1", Field2: 42, Field3: false}
+	example2 := &ExampleStruct{Field1: "value2", Field2: 43, Field3: true}
+
+	storage.Add(example1)
+	storage.Add(example2)
+
+	results := storage.Find("",
+		FindCondition{Field: "Field3", Value: false})
+	if len(results) != 1 || results[0].Field1 != "value1" {
+		t.Fatalf("expected to find 1 item with Field1 'value1', got %d items", len(results))
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field3", Value: true})
+	if len(results) != 1 || results[0].Field1 != "value2" {
+		t.Fatalf("expected to find 1 item with Field1 'value2', got %d items", len(results))
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 13, Op: ">"},
+		FindCondition{Field: "Field3", Value: true})
+	if len(results) != 1 || results[0].Field1 != "value2" {
+		t.Fatalf("expected to find 1 item with Field1 'value2', got %d items", len(results))
+	}
+
+	results = storage.Find("AND",
+		FindCondition{Field: "Field2", Value: 55, Op: ">"},
+		FindCondition{Field: "Field3", Value: true})
+	if len(results) != 0 {
+		t.Fatalf("expected to find 0 values, but got %d items : %+v", len(results), results[0])
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 55, Op: ">"},
+		FindCondition{Field: "Field3", Value: true})
+	if len(results) != 0 {
+		t.Fatalf("expected to find 0 values, but got %d items : %+v", len(results), results[0])
+	}
+
+	results = storage.Find("OR",
+		FindCondition{Field: "Field2", Value: 53, Op: ">"},
+		FindCondition{Field: "Field3", Value: true})
+	if len(results) != 1 || results[0].Field1 != "value2" {
+		t.Fatalf("expected to find 1 item with Field1 'value2', got %d items", len(results))
+	}
+}
+
+func TestCompareValuesIn(t *testing.T) {
+	tests := []struct {
+		v1       interface{}
+		v2       interface{}
+		expected bool
+	}{
+		// Test for int
+		{3, []int{1, 2, 3, 4, 5}, true},
+		{6, []int{1, 2, 3, 4, 5}, false},
+
+		// Test for string
+		{"a", []string{"a", "b", "c"}, true},
+		{"z", []string{"a", "b", "c"}, false},
+
+		// Test for bool
+		{true, []bool{true, false}, true},
+		{false, []bool{true}, false},
+
+		// Test for float
+		{3.14, []float64{1.23, 3.14, 4.56}, true},
+		{7.89, []float64{1.23, 3.14, 4.56}, false},
+	}
+
+	for _, tt := range tests {
+		result := compareValues(tt.v1, tt.v2, "in")
+		if result != tt.expected {
+			t.Errorf("compareValues(%v, %v, \"in\") = %v; expected %v", tt.v1, tt.v2, result, tt.expected)
+		}
 	}
 }
