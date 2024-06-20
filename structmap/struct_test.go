@@ -491,3 +491,29 @@ func TestCompareValuesIn(t *testing.T) {
 		}
 	}
 }
+
+func TestFindEmptyString(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+	storage.Clear()
+
+	example1 := &ExampleStruct{Field1: "value1", Field2: 42, Field3: false}
+	example2 := &ExampleStruct{Field1: "value2", Field2: 43, Field3: true}
+	example3 := &ExampleStruct{Field1: "", Field2: 55, Field3: true}
+
+	storage.Add(example1)
+	storage.Add(example2)
+	storage.Add(example3)
+
+	results := storage.Find("",
+		FindCondition{Field: "Field1", Value: "value1"})
+	if len(results) != 1 || results[0].Field1 != "value1" {
+		t.Fatalf("expected to find 1 item with Field1 'value1', got %d items", len(results))
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field1"})
+	if len(results) != 1 || results[0].Field2 != 55 {
+		t.Fatalf("expected to find 1 item with Field2 '55', got %d items", len(results))
+	}
+
+}

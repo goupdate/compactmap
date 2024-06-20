@@ -199,6 +199,11 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val := reflect.Indirect(reflect.ValueOf(v1))
 	v2Val := reflect.Indirect(reflect.ValueOf(v2))
 
+	// Treat nil or zero value v2 as an empty string if v1 is a string
+	if v1Val.Kind() == reflect.String && v2 == nil {
+		v2Val = reflect.ValueOf("")
+	}
+
 	// Handle nil values
 	if !v1Val.IsValid() || !v2Val.IsValid() {
 		switch op {
