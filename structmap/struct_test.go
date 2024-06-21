@@ -6,11 +6,14 @@ import (
 	"testing"
 )
 
+type CustomString string
+
 type ExampleStruct struct {
 	Id     int64
 	Field1 string
 	Field2 int
 	Field3 bool
+	Field4 CustomString
 }
 
 func TestNew(t *testing.T) {
@@ -427,9 +430,28 @@ func TestFindBool(t *testing.T) {
 	}
 
 	results = storage.Find("",
+		FindCondition{Field: "Field1", Value: "value1"},
+		FindCondition{Field: "Field1", Value: "e1", Op: "contains"})
+	if len(results) != 1 || results[0].Field1 != "value1" {
+		t.Fatalf("expected to find 1 item with Field1 'value1', got %d items", len(results))
+	}
+
+	results = storage.Find("",
 		FindCondition{Field: "Field3", Value: true})
 	if len(results) != 1 || results[0].Field1 != "value2" {
 		t.Fatalf("expected to find 1 item with Field1 'value2', got %d items", len(results))
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field1", Value: "value1"})
+	if len(results) != 1 || results[0].Field1 != "value1" {
+		t.Fatalf("expected to find 1 item with Field1 'value1', got %d items", len(results))
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field1", Value: []byte("value1")})
+	if len(results) != 1 || results[0].Field1 != "value1" {
+		t.Fatalf("expected to find 1 item with Field1 'value1', got %d items", len(results))
 	}
 
 	results = storage.Find("",
@@ -516,4 +538,36 @@ func TestFindEmptyString(t *testing.T) {
 		t.Fatalf("expected to find 1 item with Field2 '55', got %d items", len(results))
 	}
 
+}
+
+func TestConvertToUnderlyingType(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected interface{}
+	}{
+		{"[]byte type", []byte("test"), "test"},
+		{"String type", "test", "test"},
+		{"Int type", 42, 42},
+		{"Float type", 3.14, 3.14},
+		{"Bool type", true, true},
+		{"Slice type", []int{1, 2, 3}, []int{1, 2, 3}},
+		{"CustomString type", CustomString("custom"), "custom"},
+		{"Pointer to String", func() interface{} { s := "pointer"; return &s }(), "pointer"},
+		{"Pointer to Int", func() interface{} { i := 42; return &i }(), 42},
+		{"Pointer to CustomString", func() interface{} {
+			cs := CustomString("custom pointer")
+			return &cs
+		}(),
+			"custom pointer"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := convertToUnderlyingType(reflect.ValueOf(tt.input))
+			if !reflect.DeepEqual(val.Interface(), tt.expected) {
+				t.Errorf("Expected %v (%v), but got %v (%v)", tt.expected, reflect.TypeOf(tt.expected).Kind().String(), val.Interface(), reflect.TypeOf(val.Interface()))
+			}
+		})
+	}
 }

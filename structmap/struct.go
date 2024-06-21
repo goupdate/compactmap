@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/goupdate/compactmap"
 )
@@ -214,6 +215,39 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		}
 	}
 
+	// Convert custom types to their underlying type if possible
+	v1Val = convertToUnderlyingType(v1Val)
+	v2Val = convertToUnderlyingType(v2Val)
+
+	// Check for custom comparison methods
+	v1Interface := v1Val.Interface()
+	v2Interface := v2Val.Interface()
+
+	if less, ok := v1Interface.(interface{ Less(interface{}) bool }); ok {
+		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
+			switch op {
+			case "gt", "more", ">":
+				return !less.Less(v2Interface) && !eq.Equal(v2Interface)
+			case "lt", "less", "<":
+				return less.Less(v2Interface)
+			case "equal", "eq", "=":
+				return eq.Equal(v2Interface)
+			case "in":
+				switch v2Val.Kind() {
+				case reflect.Slice, reflect.Array:
+					for i := 0; i < v2Val.Len(); i++ {
+						if eq.Equal(v2Val.Index(i).Interface()) {
+							return true
+						}
+					}
+					return false
+				}
+			default:
+				return false
+			}
+		}
+	}
+
 	// Define a helper function to check if a value exists in a slice
 	inSlice := func(value reflect.Value, slice reflect.Value) bool {
 		for i := 0; i < slice.Len(); i++ {
@@ -222,6 +256,16 @@ func compareValues(v1, v2 interface{}, op string) bool {
 			}
 		}
 		return false
+	}
+
+	// Convert []byte to string without memory allocation
+	if v1Val.Kind() == reflect.Slice && v1Val.Type().Elem().Kind() == reflect.Uint8 {
+		v1b := v1.([]byte)
+		v1Val = reflect.ValueOf(*(*string)(unsafe.Pointer(&v1b)))
+	}
+	if v2Val.Kind() == reflect.Slice && v2Val.Type().Elem().Kind() == reflect.Uint8 {
+		v2b := v2.([]byte)
+		v2Val = reflect.ValueOf(*(*string)(unsafe.Pointer(&v2b)))
 	}
 
 	switch op {
@@ -257,39 +301,36 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	case "equal", "eq", "=":
 		fallthrough
 	default: // "="
-		return reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
-	}
-
-	// Check for custom comparison methods
-	v1Interface := v1Val.Interface()
-	v2Interface := v2Val.Interface()
-
-	if less, ok := v1Interface.(interface{ Less(interface{}) bool }); ok {
-		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
-			switch op {
-			case "gt", "more", ">":
-				return !less.Less(v2Interface) && !eq.Equal(v2Interface)
-			case "lt", "less", "<":
-				return less.Less(v2Interface)
-			case "equal", "eq", "=":
-				return eq.Equal(v2Interface)
-			case "in":
-				switch v2Val.Kind() {
-				case reflect.Slice, reflect.Array:
-					for i := 0; i < v2Val.Len(); i++ {
-						if eq.Equal(v2Val.Index(i).Interface()) {
-							return true
-						}
-					}
-					return false
-				}
-			default:
-				return false
-			}
-		}
+		ret := reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
+		return ret
 	}
 
 	return false
+}
+
+// convertToUnderlyingType converts custom types to their underlying type if possible.
+func convertToUnderlyingType(val reflect.Value) (out reflect.Value) {
+	if val.IsZero() {
+		return val
+	}
+
+	val = reflect.Indirect(val)
+
+	if val.Type().String() != val.Kind().String() {
+		if val.Type().ConvertibleTo(reflect.TypeOf("")) {
+			return val.Convert(reflect.TypeOf(""))
+		} else if val.Type().ConvertibleTo(reflect.TypeOf(0)) {
+			return val.Convert(reflect.TypeOf(0))
+		} else if val.Type().ConvertibleTo(reflect.TypeOf(false)) {
+			return val.Convert(reflect.TypeOf(false))
+		} else if val.Type().ConvertibleTo(reflect.TypeOf(0.0)) {
+			return val.Convert(reflect.TypeOf(0.0))
+		} else if val.Type().ConvertibleTo(reflect.TypeOf([]byte{})) {
+			return val.Convert(reflect.TypeOf([]byte{}))
+		}
+	}
+
+	return val
 }
 
 // FindFieldByName searches for a field by name in a given value.
