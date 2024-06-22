@@ -104,3 +104,34 @@ func TestErrorOnLoad(t *testing.T) {
 	err := cm.Load("non_existent_file.dat")
 	assert.Error(t, err, "Loading from a non-existent file should return an error")
 }
+
+func TestLoadAndDelete(t *testing.T) {
+	cm := NewCompactMap[int, int]()
+	cm.AddOrSet(1, 100)
+	cm.AddOrSet(2, 200)
+
+	value, exists := cm.Get(1)
+	assert.True(t, exists, "Value for key 1 should exist after load")
+	assert.Equal(t, 100, value, "Value for key 1 should be 100 after load")
+
+	value, exists = cm.LoadAndDelete(1)
+	assert.True(t, exists, "Value for key 1 should exist after load")
+	assert.Equal(t, 100, value, "Value for key 1 should be 100 after load")
+
+	value, exists = cm.Get(1)
+	assert.False(t, exists, "Value for key1  should not exist after LoadAndDelete")
+}
+
+func TestLoadOrStore(t *testing.T) {
+	cm := NewCompactMap[int, int]()
+	cm.LoadOrStore(1, 100)
+	cm.LoadOrStore(2, 200)
+
+	value, exists := cm.LoadOrStore(1, 300)
+	assert.True(t, exists, "Value for key 1 should exist after LoadOrStore")
+	assert.Equal(t, 100, value, "Value for key 1 should be 100 after LoadOrStore")
+
+	value, exists = cm.LoadOrStore(3, 400)
+	assert.False(t, exists, "Value for key 3 should exist after LoadOrStore")
+	assert.Equal(t, 400, value, "Value for key 3 should be 400 after LoadOrStore")
+}

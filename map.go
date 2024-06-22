@@ -44,15 +44,48 @@ func (m *CompactMap[K, V]) Clear() {
 	m.changed = true
 }
 
+// sync.Map analog
+func (m *CompactMap[K, V]) LoadOrStore(key K, value V) (old V, loaded bool) {
+	m.RLock()
+	defer m.RUnlock()
+
+	old, loaded = m.get(key)
+	if loaded {
+		return old, true
+	}
+
+	m.addOrSet(key, value)
+	return value, false
+}
+
+func (m *CompactMap[K, V]) LoadAndDelete(key K) (old V, loaded bool) {
+	m.RLock()
+	defer m.RUnlock()
+
+	old, loaded = m.get(key)
+	if loaded {
+		m.delete(key)
+		return old, true
+	}
+
+	var zero V
+	return zero, false
+}
+
 // Add or Set
-func (m *CompactMap[K, V]) AddOrSet(key K, value V) {
+func (m *CompactMap[K, V]) AddOrSet(key K, value V) (overwrited bool) {
 	m.Lock()
 	defer m.Unlock()
 
+	return m.addOrSet(key, value)
+}
+
+func (m *CompactMap[K, V]) addOrSet(key K, value V) (overwrited bool) {
 	if len(m.buffers) == 0 {
 		newBuffer := &[]Entry[K, V]{Entry[K, V]{Key: key, Value: value}}
 		m.buffers = append(m.buffers, newBuffer)
 		m.changed = true
+		overwrited = false
 		return
 	}
 
@@ -66,10 +99,12 @@ func (m *CompactMap[K, V]) AddOrSet(key K, value V) {
 
 		if index < len(*buffer) && (*buffer)[index].Key == key {
 			(*buffer)[index].Value = value
+			overwrited = true
 		} else {
 			*buffer = append(*buffer, Entry[K, V]{})
 			copy((*buffer)[index+1:], (*buffer)[index:])
 			(*buffer)[index] = Entry[K, V]{Key: key, Value: value}
+			overwrited = false
 		}
 		m.changed = true
 		return
@@ -78,14 +113,20 @@ func (m *CompactMap[K, V]) AddOrSet(key K, value V) {
 	// If no appropriate buffer found, create a new one
 	newBuffer := &[]Entry[K, V]{Entry[K, V]{Key: key, Value: value}}
 	m.buffers = append(m.buffers, newBuffer)
+	overwrited = false
 
 	m.changed = true
+	return
 }
 
 func (m *CompactMap[K, V]) Get(key K) (V, bool) {
 	m.RLock()
 	defer m.RUnlock()
 
+	return m.get(key)
+}
+
+func (m *CompactMap[K, V]) get(key K) (V, bool) {
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
 		index := sort.Search(len(*buffer), func(i int) bool {
@@ -105,6 +146,10 @@ func (m *CompactMap[K, V]) Delete(key K) {
 	m.Lock()
 	defer m.Unlock()
 
+	m.delete(key)
+}
+
+func (m *CompactMap[K, V]) delete(key K) {
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
 		index := sort.Search(len(*buffer), func(i int) bool {
