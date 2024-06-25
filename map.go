@@ -72,6 +72,11 @@ func (m *CompactMap[K, V]) LoadAndDelete(key K) (old V, loaded bool) {
 	return zero, false
 }
 
+// sync.map - compatible
+func (m *CompactMap[K, V]) Store(key K, value V) {
+	m.AddOrSet(key, value)
+}
+
 // Add or Set
 func (m *CompactMap[K, V]) AddOrSet(key K, value V) (overwrited bool) {
 	m.Lock()
@@ -117,6 +122,11 @@ func (m *CompactMap[K, V]) addOrSet(key K, value V) (overwrited bool) {
 
 	m.changed = true
 	return
+}
+
+// alias map-compatible
+func (m *CompactMap[K, V]) Load(key K) (V, bool) {
+	return m.Get(key)
 }
 
 func (m *CompactMap[K, V]) Get(key K) (V, bool) {
@@ -306,7 +316,7 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	return err
 }
 
-func (m *CompactMap[K, V]) Load(filename string) error {
+func (m *CompactMap[K, V]) Init(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
