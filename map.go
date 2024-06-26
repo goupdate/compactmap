@@ -248,6 +248,7 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	defer m.RUnlock()
 
 	if m.loadedFile == filename && !m.changed {
+		fmt.Println("nothing to save")
 		return nil
 	}
 
@@ -285,11 +286,11 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 		buffer := *buffer_
 		// Write keys and values
 		for _, entry := range buffer {
-			keyData, err := serialize(entry.Key)
+			keyData, err := Serialize(entry.Key)
 			if err != nil {
 				return err
 			}
-			valueData, err := serialize(entry.Value)
+			valueData, err := Serialize(entry.Value)
 			if err != nil {
 				return err
 			}
@@ -345,7 +346,7 @@ func (m *CompactMap[K, V]) Init(filename string) error {
 		if _, err := reader.Read(keyData); err != nil {
 			return err
 		}
-		key, err := deserialize[K](keyData)
+		key, err := Deserialize[K](keyData)
 		if err != nil {
 			return err
 		}
@@ -358,7 +359,7 @@ func (m *CompactMap[K, V]) Init(filename string) error {
 		if _, err := reader.Read(valueData); err != nil {
 			return err
 		}
-		value, err := deserialize[V](valueData)
+		value, err := Deserialize[V](valueData)
 		if err != nil {
 			return err
 		}
@@ -371,22 +372,28 @@ func (m *CompactMap[K, V]) Init(filename string) error {
 	return nil
 }
 
-func serialize[T any](data T) ([]byte, error) {
+// serialize serializes any type into a byte slice
+func Serialize[T any](data T) ([]byte, error) {
 	var buf bytes.Buffer
+
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(data)
 	if err != nil {
 		return nil, err
 	}
+
 	return buf.Bytes(), nil
 }
 
-func deserialize[T any](data []byte) (T, error) {
+// deserialize deserializes a byte slice into a value of type T
+func Deserialize[T any](data []byte) (T, error) {
 	var result T
+
 	dec := gob.NewDecoder(bytes.NewBuffer(data))
 	err := dec.Decode(&result)
 	if err != nil {
 		return result, err
 	}
+
 	return result, nil
 }

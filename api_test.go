@@ -88,7 +88,8 @@ func TestSaveAndLoad(t *testing.T) {
 	cm.Save("test_data.dat")
 
 	cm2 := NewCompactMap[int, int]()
-	cm2.Load("test_data.dat")
+	err := cm2.Init("test_data.dat")
+	assert.Nil(t, err, "should be nil")
 
 	value, exists := cm2.Get(1)
 	assert.True(t, exists, "Value for key 1 should exist after load")
@@ -101,7 +102,7 @@ func TestSaveAndLoad(t *testing.T) {
 
 func TestErrorOnLoad(t *testing.T) {
 	cm := NewCompactMap[int, int]()
-	err := cm.Load("non_existent_file.dat")
+	err := cm.Init("non_existent_file.dat")
 	assert.Error(t, err, "Loading from a non-existent file should return an error")
 }
 

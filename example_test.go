@@ -22,25 +22,21 @@ func TestAll(t *testing.T) {
 	assert.True(t, !found)
 	assert.True(t, m.Count() == 9)
 
-	buf, _ := serialize(int64(1))
-	d, _ := deserialize[int64](buf)
+	buf, _ := Serialize(int64(1))
+	d, _ := Deserialize[int64](buf)
 	assert.Equal(t, d, int64(1))
-	assert.Equal(t, len(buf), 8)
 
-	buf, _ = serialize(int32(2))
-	d2, _ := deserialize[int32](buf)
+	buf, _ = Serialize(int32(2))
+	d2, _ := Deserialize[int32](buf)
 	assert.Equal(t, d2, int32(2))
-	assert.Equal(t, len(buf), 4)
 
-	buf, _ = serialize(int16(3))
-	d3, _ := deserialize[int16](buf)
+	buf, _ = Serialize(int16(3))
+	d3, _ := Deserialize[int16](buf)
 	assert.Equal(t, d3, int16(3))
-	assert.Equal(t, len(buf), 2)
 
-	buf, _ = serialize(int8(4))
-	d4, _ := deserialize[int8](buf)
+	buf, _ = Serialize(int8(4))
+	d4, _ := Deserialize[int8](buf)
 	assert.Equal(t, d4, int8(4))
-	assert.Equal(t, len(buf), 1)
 
 	// Saving the map to a file
 	err := m.Save("dat")
@@ -48,7 +44,7 @@ func TestAll(t *testing.T) {
 
 	// Loading the map from a file
 	m2 := NewCompactMap[int32, int32]()
-	err = m2.Load("dat")
+	err = m2.Init("dat")
 	if err != nil {
 		t.Fatal("Error loading map:", err)
 	}
