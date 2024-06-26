@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
+
+	"github.com/goupdate/deadlock"
 
 	"github.com/MasterDimmy/zipologger"
 
@@ -15,7 +16,7 @@ import (
 )
 
 type Server[V any] struct {
-	sync.RWMutex
+	deadlock.RWMutex
 
 	storage     *structmap.StructMap[*V]
 	srv         *fasthttp.Server

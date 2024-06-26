@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/goupdate/deadlock"
 
 	"github.com/goupdate/compactmap"
 )
@@ -16,7 +17,7 @@ import (
 */
 
 type StructMap[V any] struct {
-	sync.RWMutex
+	deadlock.RWMutex
 
 	cm   *compactmap.CompactMap[int64, V]     // In-memory database
 	info *compactmap.CompactMap[int64, int64] // Store maxId
@@ -52,13 +53,13 @@ func New[V any](storageFile string, failIfNotLoaded bool) (*StructMap[V], error)
 	}
 
 	cm := compactmap.NewCompactMap[int64, V]()
-	err := cm.Load(storageFile)
+	err := cm.Init(storageFile)
 	if err != nil && failIfNotLoaded {
 		return nil, err
 	}
 
 	info := compactmap.NewCompactMap[int64, int64]()
-	err = info.Load(storageFile + "i")
+	err = info.Init(storageFile + "i")
 	if err != nil && failIfNotLoaded {
 		return nil, err
 	}
