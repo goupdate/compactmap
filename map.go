@@ -181,6 +181,11 @@ func (m *CompactMap[K, V]) delete(key K) {
 	}
 }
 
+// sync.Map alias
+func (m *CompactMap[K, V]) Range(fn func(key K, val V) bool) {
+	m.Iterate(fn)
+}
+
 // dont modify database in iterate!
 func (m *CompactMap[K, V]) Iterate(fn func(key K, val V) bool) {
 	m.RLock()
