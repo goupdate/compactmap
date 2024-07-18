@@ -137,6 +137,38 @@ func TestFindLike(t *testing.T) {
 	}
 }
 
+func TestFindIn(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+	storage.Clear()
+
+	example1 := &ExampleStruct{Field1: "value1", Field2: 42}
+	example2 := &ExampleStruct{Field1: "value2", Field2: 43}
+
+	storage.Add(example1)
+	storage.Add(example2)
+
+	results := storage.Find("", FindCondition{Field: "Field2", Value: []int{40, 24, 42, 55}, Op: "in"})
+	if len(results) != 1 {
+		t.Fatalf("expected to find 1 items with Field1 containing 'value', got %d items", len(results))
+	}
+
+	results = storage.Find("", FindCondition{Field: "Field2", Value: []int{40, 42, 43, 44}, Op: "in"})
+	if len(results) != 2 {
+		t.Fatalf("expected to find 2 items with Field1 containing 'value', got %d items", len(results))
+	}
+
+	results = storage.Find("", FindCondition{Field: "Field2", Value: []int{40, 4, 5, 6, 7}, Op: "in"})
+	if len(results) != 0 {
+		t.Fatalf("expected to find 0 items with Field1 containing 'value', got %d items", len(results))
+	}
+
+	//string != int !
+	results = storage.Find("", FindCondition{Field: "Field2", Value: []string{"40", "24", "42", "55"}, Op: "in"})
+	if len(results) != 0 {
+		t.Fatalf("expected to find 0 items with Field1 containing 'value', got %d items", len(results))
+	}
+}
+
 func TestDelete(t *testing.T) {
 	storage, _ := New[*ExampleStruct]("test_storage", false)
 	storage.Clear()
