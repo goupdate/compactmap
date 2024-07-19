@@ -1,2 +1,0 @@
-Add:
-<> , !=, notequal, nt, not

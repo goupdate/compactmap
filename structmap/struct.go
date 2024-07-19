@@ -206,11 +206,22 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		v2Val = reflect.ValueOf("")
 	}
 
+	// Treat nil value v2 as a zero int if v1 is a int
+	if (v1Val.Kind() == reflect.Int ||
+		v1Val.Kind() == reflect.Int8 ||
+		v1Val.Kind() == reflect.Int16 ||
+		v1Val.Kind() == reflect.Int32 ||
+		v1Val.Kind() == reflect.Int64) && v2 == nil {
+		v2Val = reflect.ValueOf(0)
+	}
+
 	// Handle nil values
 	if !v1Val.IsValid() || !v2Val.IsValid() {
 		switch op {
 		case "equal", "eq", "=":
 			return !v1Val.IsValid() && !v2Val.IsValid() // both are nil
+		case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
+			return v1Val.IsValid() == v2Val.IsValid()
 		default:
 			return false
 		}
@@ -220,11 +231,32 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val = convertToUnderlyingType(v1Val)
 	v2Val = convertToUnderlyingType(v2Val)
 
+	// Convert types if necessary for comparison
+	if v2Val.Kind() == reflect.Float32 || v2Val.Kind() == reflect.Float64 {
+		switch v1Val.Kind() {
+		case reflect.Int:
+			v2Val = reflect.ValueOf(int(v2Val.Float()))
+		case reflect.Int8:
+			v2Val = reflect.ValueOf(int8(v2Val.Float()))
+		case reflect.Int16:
+			v2Val = reflect.ValueOf(int16(v2Val.Float()))
+		case reflect.Int32:
+			v2Val = reflect.ValueOf(int32(v2Val.Float()))
+		case reflect.Int64:
+			v2Val = reflect.ValueOf(int64(v2Val.Float()))
+		default:
+		}
+	} else if v1Val.Kind() == reflect.Float32 || v1Val.Kind() == reflect.Float64 {
+		switch v2Val.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			v1Val = reflect.ValueOf(float64(v1Val.Float()))
+		default:
+		}
+	}
+
 	// Check for custom comparison methods
 	v1Interface := v1Val.Interface()
 	v2Interface := v2Val.Interface()
-
-	fmt.Printf("compare: %v %v op=%s\n", v1Interface, v2Interface, op)
 
 	if less, ok := v1Interface.(interface{ Less(interface{}) bool }); ok {
 		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
@@ -235,6 +267,8 @@ func compareValues(v1, v2 interface{}, op string) bool {
 				return less.Less(v2Interface)
 			case "equal", "eq", "=":
 				return eq.Equal(v2Interface)
+			case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
+				return !eq.Equal(v2Interface)
 			case "in":
 				switch v2Val.Kind() {
 				case reflect.Slice, reflect.Array:
@@ -301,6 +335,8 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		case reflect.Slice, reflect.Array:
 			return inSlice(v1Val, v2Val)
 		}
+	case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
+		return !reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
 	case "equal", "eq", "=":
 		fallthrough
 	default: // "="
@@ -322,12 +358,12 @@ func convertToUnderlyingType(val reflect.Value) (out reflect.Value) {
 	if val.Type().String() != val.Kind().String() {
 		if val.Type().ConvertibleTo(reflect.TypeOf("")) {
 			return val.Convert(reflect.TypeOf(""))
-		} else if val.Type().ConvertibleTo(reflect.TypeOf(0)) {
-			return val.Convert(reflect.TypeOf(0))
+		} else if val.Type().ConvertibleTo(reflect.TypeOf(int64(0))) {
+			return val.Convert(reflect.TypeOf(int64(0)))
 		} else if val.Type().ConvertibleTo(reflect.TypeOf(false)) {
 			return val.Convert(reflect.TypeOf(false))
-		} else if val.Type().ConvertibleTo(reflect.TypeOf(0.0)) {
-			return val.Convert(reflect.TypeOf(0.0))
+		} else if val.Type().ConvertibleTo(reflect.TypeOf(float64(0.0))) {
+			return val.Convert(reflect.TypeOf(float64(0.0)))
 		} else if val.Type().ConvertibleTo(reflect.TypeOf([]byte{})) {
 			return val.Convert(reflect.TypeOf([]byte{}))
 		}
@@ -400,8 +436,13 @@ func findFieldByName(val reflect.Value, name string) reflect.Value {
 type FindCondition struct {
 	Field string
 	Value interface{}
-	Op    string // "equal", "eq", =, "gt", "more", >, "lt", "less", <, "in"
+	Op    string
 	// if op is "" eq not set, used "equal" operator
+	// not equal operators : "<>", "!=", "notequal", "nt", "not", "nq", "neq"
+	// equal operators     : "equal", "eq", "="
+	// value in Field is MORE then given Value : "gt", "more", ">"
+	// value in Field is LESS then given Value : "lt", "less", "<"
+	// value in Field is IN then given Value slice (same type) : "in"
 }
 
 /*
