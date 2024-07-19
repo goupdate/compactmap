@@ -224,6 +224,8 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	v1Interface := v1Val.Interface()
 	v2Interface := v2Val.Interface()
 
+	fmt.Printf("compare: %v %v op=%s\n", v1Interface, v2Interface, op)
+
 	if less, ok := v1Interface.(interface{ Less(interface{}) bool }); ok {
 		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
 			switch op {

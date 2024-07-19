@@ -152,16 +152,18 @@ func (s *Server[V]) logAction(ctx *fasthttp.RequestCtx, response ...interface{})
 			ret := ""
 			for _, r := range response {
 				rt := reflect.ValueOf(r)
-				switch rt.Type().Kind() {
-				case reflect.Slice:
-					retv := ""
-					for i := 0; i < rt.Len(); i++ {
-						el := rt.Index(i)
-						retv += fmt.Sprintf("%+v ", reflect.Indirect(el.Elem()))
+				if rt.IsValid() && !rt.IsZero() && !rt.IsNil() {
+					switch rt.Type().Kind() {
+					case reflect.Slice:
+						retv := ""
+						for i := 0; i < rt.Len(); i++ {
+							el := rt.Index(i)
+							retv += fmt.Sprintf("%+v ", reflect.Indirect(el.Elem()))
+						}
+						ret += retv
+					default:
+						ret += fmt.Sprintf("%+v ", r)
 					}
-					ret += retv
-				default:
-					ret += fmt.Sprintf("%+v ", r)
 				}
 			}
 			s.log.Printf("%s", ret)
