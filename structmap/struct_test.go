@@ -15,6 +15,7 @@ type ExampleStruct struct {
 	Field3 bool
 	Field4 CustomString
 	Field5 int64
+	Field6 float64
 }
 
 func TestNew(t *testing.T) {
@@ -300,6 +301,27 @@ func TestFindWithAndConditions(t *testing.T) {
 	results := storage.Find("AND", FindCondition{Field: "Field1", Value: "value1", Op: "equal"}, FindCondition{Field: "Field2", Value: 42, Op: "equal"})
 	if len(results) != 1 || results[0].Field1 != "value1" || results[0].Field2 != 42 {
 		t.Fatalf("expected to find 1 item with Field1 'value1' and Field2 42, got %d items", len(results))
+	}
+}
+
+func TestFindIntAndFloat(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+
+	example1 := &ExampleStruct{Field1: "value1", Field6: 34}
+	example2 := &ExampleStruct{Field1: "value2", Field5: 43}
+
+	storage.Add(example1)
+	storage.Add(example2)
+
+	// Test AND condition
+	results := storage.Find("AND", FindCondition{Field: "Field6", Value: int64(34), Op: "equal"})
+	if len(results) != 1 || results[0].Field1 != "value1" {
+		t.Fatalf("expected to find 1 item, got %d items", len(results))
+	}
+
+	results = storage.Find("AND", FindCondition{Field: "Field5", Value: float64(43), Op: "equal"})
+	if len(results) != 1 || results[0].Field1 != "value2" {
+		t.Fatalf("expected to find 1 item, got %d items", len(results))
 	}
 }
 

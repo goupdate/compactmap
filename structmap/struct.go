@@ -200,6 +200,9 @@ result := compareValues(10, []int{1, 2, 10}, "in") // Returns true
 func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val := reflect.Indirect(reflect.ValueOf(v1))
 	v2Val := reflect.Indirect(reflect.ValueOf(v2))
+	if op == "" {
+		op = "="
+	}
 
 	// Treat nil or zero value v2 as an empty string if v1 is a string
 	if v1Val.Kind() == reflect.String && v2 == nil {
@@ -279,6 +282,23 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		v2Val = reflect.ValueOf(*(*string)(unsafe.Pointer(&v2b)))
 	}
 
+	equal := func(a, b interface{}) bool {
+		if v1Val.CanInt() {
+			if v2Val.CanInt() {
+				return int64(v1Val.Int()) == v2Val.Int()
+			} else if v2Val.CanFloat() {
+				return float64(v1Val.Int()) == v2Val.Float()
+			}
+		} else if v1Val.CanFloat() {
+			if v2Val.CanInt() {
+				return int64(v1Val.Float()) == v2Val.Int()
+			} else if v2Val.CanFloat() {
+				return float64(v1Val.Float()) == v2Val.Float()
+			}
+		}
+		return reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
+	}
+
 	switch op {
 	case "gt", "more", ">":
 		if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
@@ -331,12 +351,11 @@ func compareValues(v1, v2 interface{}, op string) bool {
 			return inSlice(v1Val, v2Val)
 		}
 	case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
-		return !reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
+		return !equal(v1Val.Interface(), v2Val.Interface())
 	case "equal", "eq", "=":
 		fallthrough
 	default: // "="
-		ret := reflect.DeepEqual(v1Val.Interface(), v2Val.Interface())
-		return ret
+		return equal(v1Val.Interface(), v2Val.Interface())
 	}
 
 	return false
