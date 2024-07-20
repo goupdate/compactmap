@@ -207,11 +207,7 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	}
 
 	// Treat nil value v2 as a zero int if v1 is a int
-	if (v1Val.Kind() == reflect.Int ||
-		v1Val.Kind() == reflect.Int8 ||
-		v1Val.Kind() == reflect.Int16 ||
-		v1Val.Kind() == reflect.Int32 ||
-		v1Val.Kind() == reflect.Int64) && v2 == nil {
+	if v1Val.CanInt() && v2 == nil {
 		v2Val = reflect.ValueOf(0)
 	}
 
@@ -231,29 +227,6 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	v1Val = convertToUnderlyingType(v1Val)
 	v2Val = convertToUnderlyingType(v2Val)
 
-	// Convert types if necessary for comparison
-	if v2Val.Kind() == reflect.Float32 || v2Val.Kind() == reflect.Float64 {
-		switch v1Val.Kind() {
-		case reflect.Int:
-			v2Val = reflect.ValueOf(int(v2Val.Float()))
-		case reflect.Int8:
-			v2Val = reflect.ValueOf(int8(v2Val.Float()))
-		case reflect.Int16:
-			v2Val = reflect.ValueOf(int16(v2Val.Float()))
-		case reflect.Int32:
-			v2Val = reflect.ValueOf(int32(v2Val.Float()))
-		case reflect.Int64:
-			v2Val = reflect.ValueOf(int64(v2Val.Float()))
-		default:
-		}
-	} else if v1Val.Kind() == reflect.Float32 || v1Val.Kind() == reflect.Float64 {
-		switch v2Val.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			v1Val = reflect.ValueOf(float64(v1Val.Float()))
-		default:
-		}
-	}
-
 	// Check for custom comparison methods
 	v1Interface := v1Val.Interface()
 	v2Interface := v2Val.Interface()
@@ -262,6 +235,7 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
 			switch op {
 			case "gt", "more", ">":
+				fmt.Println("not less or equal")
 				return !less.Less(v2Interface) && !eq.Equal(v2Interface)
 			case "lt", "less", "<":
 				return less.Less(v2Interface)
@@ -307,25 +281,46 @@ func compareValues(v1, v2 interface{}, op string) bool {
 
 	switch op {
 	case "gt", "more", ">":
-		if v1Val.Kind() == reflect.Int && v2Val.Kind() == reflect.Int {
-			return v1Val.Int() > v2Val.Int()
-		} else if v1Val.Kind() == reflect.Float32 || v1Val.Kind() == reflect.Float64 {
-			return v1Val.Float() > v2Val.Float()
-		} else if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
+		if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
 			return v1Val.String() > v2Val.String()
 		} else if v1Val.Kind() == reflect.Bool && v2Val.Kind() == reflect.Bool {
 			return v1Val.Bool() && !v2Val.Bool()
 		}
+
+		if v1Val.CanInt() {
+			if v2Val.CanInt() {
+				return int64(v1Val.Int()) > v2Val.Int()
+			} else if v2Val.CanFloat() {
+				return float64(v1Val.Int()) > v2Val.Float()
+			}
+		} else if v1Val.CanFloat() {
+			if v2Val.CanInt() {
+				return int64(v1Val.Float()) > v2Val.Int()
+			} else if v2Val.CanFloat() {
+				return float64(v1Val.Float()) > v2Val.Float()
+			}
+		}
 	case "lt", "less", "<":
-		if v1Val.Kind() == reflect.Int && v2Val.Kind() == reflect.Int {
-			return v1Val.Int() < v2Val.Int()
-		} else if v1Val.Kind() == reflect.Float32 || v1Val.Kind() == reflect.Float64 {
-			return v1Val.Float() < v2Val.Float()
-		} else if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
+		if v1Val.Kind() == reflect.String && v2Val.Kind() == reflect.String {
 			return v1Val.String() < v2Val.String()
 		} else if v1Val.Kind() == reflect.Bool && v2Val.Kind() == reflect.Bool {
 			return !v1Val.Bool() && v2Val.Bool()
 		}
+
+		if v1Val.CanInt() {
+			if v2Val.CanInt() {
+				return int64(v1Val.Int()) < v2Val.Int()
+			} else if v2Val.CanFloat() {
+				return float64(v1Val.Int()) < v2Val.Float()
+			}
+		} else if v1Val.CanFloat() {
+			if v2Val.CanInt() {
+				return int64(v1Val.Float()) < v2Val.Int()
+			} else if v2Val.CanFloat() {
+				return float64(v1Val.Float()) < v2Val.Float()
+			}
+		}
+
 	case "like", "contains":
 		str1, ok1 := v1Val.Interface().(string)
 		str2, ok2 := v2Val.Interface().(string)

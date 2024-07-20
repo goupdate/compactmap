@@ -14,6 +14,7 @@ type ExampleStruct struct {
 	Field2 int
 	Field3 bool
 	Field4 CustomString
+	Field5 int64
 }
 
 func TestNew(t *testing.T) {
@@ -253,15 +254,34 @@ func TestFindWithOrConditions(t *testing.T) {
 	example1 := &ExampleStruct{Field1: "value1", Field2: 42}
 	example2 := &ExampleStruct{Field1: "value2", Field2: 43}
 	example3 := &ExampleStruct{Field1: "other", Field2: 42}
+	example4 := &ExampleStruct{Field1: "value3", Field5: 45, Field2: 45}
+	example5 := &ExampleStruct{Field1: "value3", Field5: 1721429365, Field2: 77}
 
 	storage.Add(example1)
 	storage.Add(example2)
 	storage.Add(example3)
+	storage.Add(example4)
+	storage.Add(example5)
 
 	// Test OR condition
 	results := storage.Find("OR", FindCondition{Field: "Field1", Value: "value1", Op: "equal"}, FindCondition{Field: "Field2", Value: 43, Op: "equal"})
 	if len(results) != 2 {
 		t.Fatalf("expected to find 2 items with Field1 'value1' or Field2 43, got %d items", len(results))
+	}
+
+	results = storage.Find("AND", FindCondition{Field: "Field5", Value: 41, Op: ">"})
+	if len(results) != 2 {
+		t.Fatalf("expected to find 2 items, got %d items", len(results))
+	}
+
+	results = storage.Find("AND", FindCondition{Field: "Field2", Value: 44, Op: "<"})
+	if len(results) != 3 {
+		t.Fatalf("expected to find 3 items, got %d items", len(results))
+	}
+
+	results = storage.Find("AND", FindCondition{Field: "Field5", Value: 1721429361.0, Op: ">"})
+	if len(results) != 1 {
+		t.Fatalf("expected to find 1 items, got %d items", len(results))
 	}
 }
 
