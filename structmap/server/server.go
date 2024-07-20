@@ -283,8 +283,6 @@ func (s *Server[V]) handleFind(ctx *fasthttp.RequestCtx, storage *structmap.Stru
 	}
 
 	results := storage.Find(req.Condition, req.Where...)
-	fmt.Printf("res: %+v\n", results)
-
 	s.respondWithSuccess(ctx, results)
 }
 
