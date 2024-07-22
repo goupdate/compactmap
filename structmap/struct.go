@@ -437,7 +437,6 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		switch v2Val.Kind() {
 		case reflect.Slice, reflect.Array:
 			ret := inSlice(v1Val, v2Val)
-			fmt.Printf("inslice: %v %v => %v\n", v1Val, v2Val, ret)
 			return ret
 		}
 	case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
