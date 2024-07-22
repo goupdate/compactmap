@@ -1,12 +1,12 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/MasterDimmy/zipologger"
-
 	"github.com/goupdate/compactmap/structmap"
 	"github.com/valyala/fasthttp"
 )
@@ -84,7 +84,7 @@ func (c *Client[V]) post(endpoint string, requestBody interface{}) ([]byte, erro
 		return nil, fmt.Errorf(string(resp.Body()))
 	}
 
-	return resp.Body(), nil
+	return bytes.Clone(resp.Body()), nil
 }
 
 func (c *Client[V]) get(endpoint string) ([]byte, error) {
@@ -111,7 +111,7 @@ func (c *Client[V]) get(endpoint string) ([]byte, error) {
 		return nil, fmt.Errorf(string(resp.Body()))
 	}
 
-	return resp.Body(), nil
+	return bytes.Clone(resp.Body()), nil
 }
 
 func (c *Client[V]) Clear() error {
