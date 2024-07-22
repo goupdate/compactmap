@@ -685,3 +685,29 @@ func TestConvertToUnderlyingType(t *testing.T) {
 		})
 	}
 }
+
+func TestInSlice(t *testing.T) {
+	// Example values
+	value := reflect.ValueOf(int64(612))
+	slice := reflect.ValueOf([]float64{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361})
+
+	// Call the function and print the result
+	result := inSlice(value, slice)
+	if !result {
+		t.Fatal("not in slice 1!")
+	}
+
+	slice = reflect.ValueOf([]int{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361})
+	// Call the function and print the result
+	result = inSlice(value, slice)
+	if !result {
+		t.Fatal("not in slice 2!")
+	}
+
+	slice = reflect.ValueOf([]float32{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361})
+	// Call the function and print the result
+	result = inSlice(value, slice)
+	if !result {
+		t.Fatal("not in slice 3!")
+	}
+}

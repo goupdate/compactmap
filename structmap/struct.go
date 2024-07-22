@@ -8,9 +8,8 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/goupdate/deadlock"
-
 	"github.com/goupdate/compactmap"
+	"github.com/goupdate/deadlock"
 )
 
 /*
@@ -214,6 +213,33 @@ func (p *StructMap[V]) GetAll() []V {
 	return ret
 }
 
+// Define a helper function to check if a value exists in a slice
+func inSlice(value reflect.Value, slice reflect.Value) (ret bool) {
+	if slice.Len() == 0 {
+		return false
+	}
+
+	if value.Kind() == slice.Index(0).Kind() {
+		for i := 0; i < slice.Len(); i++ {
+			if reflect.DeepEqual(value.Interface(), slice.Index(i).Interface()) {
+				return true
+			}
+		}
+		return false
+	}
+
+	val := value.Interface()
+	typ := reflect.TypeOf(value.Interface())
+	for i := 0; i < slice.Len(); i++ {
+		if slice.Index(i).CanConvert(typ) {
+			if slice.Index(i).Convert(typ).Interface() == val {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 /*
 	compareValues compares two values based on the given operator
 
@@ -241,7 +267,7 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	// Handle nil values
 	if !v1Val.IsValid() || !v2Val.IsValid() {
 		switch op {
-		case "equal", "eq", "=":
+		case "equal", "eq", "=", "in":
 			return !v1Val.IsValid() && !v2Val.IsValid() // both are nil
 		case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
 			return v1Val.IsValid() == v2Val.IsValid()
@@ -262,7 +288,6 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		if eq, ok := v1Interface.(interface{ Equal(interface{}) bool }); ok {
 			switch op {
 			case "gt", "more", ">":
-				fmt.Println("not less or equal")
 				return !less.Less(v2Interface) && !eq.Equal(v2Interface)
 			case "lt", "less", "<":
 				return less.Less(v2Interface)
@@ -284,16 +309,6 @@ func compareValues(v1, v2 interface{}, op string) bool {
 				return false
 			}
 		}
-	}
-
-	// Define a helper function to check if a value exists in a slice
-	inSlice := func(value reflect.Value, slice reflect.Value) bool {
-		for i := 0; i < slice.Len(); i++ {
-			if reflect.DeepEqual(value.Interface(), slice.Index(i).Interface()) {
-				return true
-			}
-		}
-		return false
 	}
 
 	// Convert []byte to string without memory allocation
