@@ -2,13 +2,11 @@ package structmap
 
 import (
 	"fmt"
+	"math/rand"
 	"reflect"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"unsafe"
-
-	"github.com/goupdate/compactmap/structmap/internal/etc"
 
 	"github.com/goupdate/deadlock"
 
@@ -180,34 +178,30 @@ func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fiel
 		return true
 	})
 
-	var upd = ids
+	// If no ids were found, return an empty slice
+	if len(ids) == 0 {
+		return nil
+	}
 
-	if random && len(ids) > 0 {
-		upd = make([]int64, 0, len(ids))
+	upd := ids
+
+	if random {
 		//how many to update
-		if elCount == 0 {
+		if elCount == 0 || elCount > len(ids) {
 			elCount = len(ids)
-		} else {
-			if elCount > len(ids) {
-				elCount = len(ids)
-			}
 		}
-		//choose count random elements from ids
-		for range elCount {
-			rnd := etc.Crand.Int63() % int64(len(ids))
-			rndId := ids[rnd]
-			upd = append(upd, rndId)
-			ids = slices.Delete(ids, int(rnd), int(rnd+1))
-			if len(ids) == 0 {
-				break
-			}
-		}
+
+		upd = make([]int64, elCount)
+
+		// Shuffle the ids and take the first elCount elements
+		rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
+		copy(upd, ids[:elCount])
 	}
 
 	for _, id := range upd {
 		p.SetFields(id, fields)
 	}
-	return ids
+	return upd
 }
 
 // GetAll retrieves all structs from the map

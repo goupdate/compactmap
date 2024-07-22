@@ -362,35 +362,40 @@ func TestUpdateCountRandom(t *testing.T) {
 	storage, _ := New[*ExampleStruct]("test_storage", false)
 	storage.Clear()
 
-	for i := range 1000 {
-		example1 := &ExampleStruct{Field1: "value" + fmt.Sprintf("%d", i), Field2: 42, Id: int64(i)}
-		storage.Add(example1)
+	for range 10 { //10 tries for random
+		for i := range 1000 {
+			example1 := &ExampleStruct{Field1: "value" + fmt.Sprintf("%d", i), Field2: 42, Id: int64(i)}
+			storage.Add(example1)
+		}
+
+		// Update Field1 to "updated" for items where Field2 > 42
+		updatedCount := storage.UpdateCount("AND", []FindCondition{
+			{Field: "Field2", Value: 42},
+		}, map[string]interface{}{
+			"Field1": "updated",
+		}, 1, true)
+
+		if len(updatedCount) != 1 {
+			t.Fatalf("expected to update 1 items, got %d", len(updatedCount))
+		}
+
+		updatedCountSecond := storage.UpdateCount("AND", []FindCondition{
+			{Field: "Field2", Value: 42},
+		}, map[string]interface{}{
+			"Field1": "updated2",
+		}, 1, true)
+
+		if len(updatedCountSecond) != 1 {
+			t.Fatalf("expected to update 1 items, got %d", len(updatedCountSecond))
+		}
+
+		//exit if they are different
+		if updatedCount[0] != updatedCountSecond[0] {
+			return
+		}
 	}
 
-	// Update Field1 to "updated" for items where Field2 > 42
-	updatedCount := storage.UpdateCount("AND", []FindCondition{
-		{Field: "Field2", Value: 42},
-	}, map[string]interface{}{
-		"Field1": "updated",
-	}, 1, true)
-
-	if len(updatedCount) != 1 {
-		t.Fatalf("expected to update 1 items, got %d", len(updatedCount))
-	}
-
-	updatedCountSecond := storage.UpdateCount("AND", []FindCondition{
-		{Field: "Field2", Value: 42, Op: ">"},
-	}, map[string]interface{}{
-		"Field1": "updated2",
-	}, 1, true)
-
-	if len(updatedCountSecond) != 1 {
-		t.Fatalf("expected to update 1 items, got %d", len(updatedCountSecond))
-	}
-
-	if updatedCount[0] == updatedCountSecond[0] {
-		t.Fatalf("expected to update different elemtemts, but got same: %d", updatedCount[0])
-	}
+	t.Fatalf("expected to update different elemtemts, but got same")
 }
 func TestSave(t *testing.T) {
 	storage, _ := New[*ExampleStruct]("test_storage", false)
