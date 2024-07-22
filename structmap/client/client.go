@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/MasterDimmy/zipologger"
+
 	"github.com/goupdate/compactmap/structmap"
 	"github.com/valyala/fasthttp"
 )
@@ -14,8 +16,9 @@ var (
 )
 
 type Client[V any] struct {
-	baseURL string
-	client  *fasthttp.Client
+	baseURL   string
+	client    *fasthttp.Client
+	error_log *zipologger.Logger
 }
 
 func New[V any](baseURL string) *Client[V] {
@@ -26,6 +29,11 @@ func New[V any](baseURL string) *Client[V] {
 			WriteTimeout: Timeout,
 		},
 	}
+}
+
+func (c *Client[V]) SetErrorLog(log *zipologger.Logger) *Client[V] {
+	c.error_log = log
+	return c
 }
 
 // panics on unknown condition
@@ -44,6 +52,9 @@ func (c *Client[V]) post(endpoint string, requestBody interface{}) ([]byte, erro
 	if requestBody != nil {
 		body, err = json.Marshal(requestBody)
 		if err != nil {
+			if c.error_log != nil {
+				c.error_log.Printf("post error: [%s] : [%s]", string(body), err.Error())
+			}
 			return nil, err
 		}
 	}
@@ -60,10 +71,16 @@ func (c *Client[V]) post(endpoint string, requestBody interface{}) ([]byte, erro
 
 	err = c.client.DoTimeout(req, resp, Timeout)
 	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("timeout: [%s]", err.Error())
+		}
 		return nil, err
 	}
 
 	if resp.StatusCode() != fasthttp.StatusOK {
+		if c.error_log != nil {
+			c.error_log.Printf("incorrect status [%d] : [%s]", resp.StatusCode(), string(resp.Body()))
+		}
 		return nil, fmt.Errorf(string(resp.Body()))
 	}
 
@@ -81,10 +98,16 @@ func (c *Client[V]) get(endpoint string) ([]byte, error) {
 
 	err := c.client.DoTimeout(req, resp, Timeout)
 	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("get error: [%s]", err.Error())
+		}
 		return nil, err
 	}
 
 	if resp.StatusCode() != fasthttp.StatusOK {
+		if c.error_log != nil {
+			c.error_log.Printf("incorrect status [%d] : [%s]", resp.StatusCode(), string(resp.Body()))
+		}
 		return nil, fmt.Errorf(string(resp.Body()))
 	}
 
@@ -107,6 +130,11 @@ func (c *Client[V]) Add(item *V) (int64, error) {
 	}
 
 	err = json.Unmarshal(response, &result)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("add error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return result.Id, err
 }
 
@@ -122,6 +150,11 @@ func (c *Client[V]) Get(id int64) (*V, error) {
 
 	var item V
 	err = json.Unmarshal(response, &item)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("get error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return &item, err
 }
 
@@ -152,6 +185,11 @@ func (c *Client[V]) Update(condition string, where []structmap.FindCondition, fi
 		Updated int `json:"updated"`
 	}
 	err = json.Unmarshal(response, &result)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("update error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return result.Updated, err
 }
 
@@ -181,6 +219,11 @@ func (c *Client[V]) UpdateCount(condition string, where []structmap.FindConditio
 		Updated []int64 `json:"updated"`
 	}
 	err = json.Unmarshal(response, &result)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("update count error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return result.Updated, err
 }
 
@@ -211,6 +254,11 @@ func (c *Client[V]) UpdateCountRandom(condition string, where []structmap.FindCo
 		Updated []int64 `json:"updated"`
 	}
 	err = json.Unmarshal(response, &result)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("update count random error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return result.Updated, err
 }
 
@@ -226,6 +274,11 @@ func (c *Client[V]) SetField(id int64, field string, value interface{}) error {
 	}
 
 	_, err := c.post("/api/setfield", req)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("setfield error: [%s]", err.Error())
+		}
+	}
 	return err
 }
 
@@ -239,6 +292,11 @@ func (c *Client[V]) SetFields(id int64, fields map[string]interface{}) error {
 	}
 
 	_, err := c.post("/api/setfields", req)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("setfields error: [%s]", err.Error())
+		}
+	}
 	return err
 }
 
@@ -260,6 +318,11 @@ func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V
 
 	var results []V
 	err = json.Unmarshal(response, &results)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("find error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return results, err
 }
 
@@ -271,5 +334,10 @@ func (c *Client[V]) All() ([]V, error) {
 
 	var results []V
 	err = json.Unmarshal(response, &results)
+	if err != nil {
+		if c.error_log != nil {
+			c.error_log.Printf("all error: [%s] : [%s]", string(response), err.Error())
+		}
+	}
 	return results, err
 }
