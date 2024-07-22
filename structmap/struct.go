@@ -3,9 +3,12 @@ package structmap
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/goupdate/compactmap/structmap/internal/etc"
 
 	"github.com/goupdate/deadlock"
 
@@ -147,7 +150,7 @@ func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
 	Returns: elements updated
 */
 func (p *StructMap[V]) Update(condition string, where []FindCondition, fields map[string]interface{}) int {
-	ids := p.UpdateCount(condition, where, fields, 0)
+	ids := p.UpdateCount(condition, where, fields, 0, false)
 	return len(ids)
 }
 
@@ -163,18 +166,37 @@ elCount - count of first elements to update, 0 if no limit
 
 Returns: slice of Ids of updated elements
 */
-func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fields map[string]interface{}, elCount int) []int64 {
+func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fields map[string]interface{}, elCount int, random bool) []int64 {
 	var ids []int64
 	count := 0
 	p.FindFn(condition, where, func(id int64, v V) bool {
 		ids = append(ids, id)
-		count++
-		if elCount > 0 && count == elCount {
-			return false
+		if !random {
+			count++
+			if elCount > 0 && count == elCount {
+				return false
+			}
 		}
 		return true
 	})
-	for _, id := range ids {
+
+	var upd = ids
+
+	if random && len(ids) > 0 {
+		upd = make([]int64, 0, len(ids))
+		//choose count random elements from ids
+		for range count {
+			rnd := etc.Crand.Int63() % int64(len(ids))
+			rndId := ids[rnd]
+			upd = append(upd, rndId)
+			ids = slices.Delete(ids, int(rnd), int(rnd+1))
+			if len(ids) == 0 {
+				break
+			}
+		}
+	}
+
+	for _, id := range upd {
 		p.SetFields(id, fields)
 	}
 	return ids

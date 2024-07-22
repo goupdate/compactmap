@@ -160,11 +160,42 @@ func (c *Client[V]) UpdateCount(condition string, where []structmap.FindConditio
 	checkCondition(condition)
 
 	req := struct {
+		Random    bool                      `json:"random"` //update random count values?
 		Count     int                       `json:"count"`
 		Condition string                    `json:"condition"`
 		Where     []structmap.FindCondition `json:"where"`
 		Fields    map[string]interface{}    `json:"fields"`
 	}{
+		Count:     elCount,
+		Condition: condition,
+		Where:     where,
+		Fields:    fields,
+	}
+
+	response, err := c.post("/api/updatecount", req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		Updated []int64 `json:"updated"`
+	}
+	err = json.Unmarshal(response, &result)
+	return result.Updated, err
+}
+
+// update random count elements
+func (c *Client[V]) UpdateCountRandom(condition string, where []structmap.FindCondition, fields map[string]interface{}, elCount int) ([]int64, error) {
+	checkCondition(condition)
+
+	req := struct {
+		Random    bool                      `json:"random"` //update random count values?
+		Count     int                       `json:"count"`
+		Condition string                    `json:"condition"`
+		Where     []structmap.FindCondition `json:"where"`
+		Fields    map[string]interface{}    `json:"fields"`
+	}{
+		Random:    true,
 		Count:     elCount,
 		Condition: condition,
 		Where:     where,

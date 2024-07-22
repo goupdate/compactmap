@@ -226,7 +226,8 @@ func (s *Server[V]) handleUpdate(ctx *fasthttp.RequestCtx, storage *structmap.St
 
 func (s *Server[V]) handleUpdateCount(ctx *fasthttp.RequestCtx, storage *structmap.StructMap[*V]) {
 	var req struct {
-		Count     int                       `json:"count"` //how many elements to ypdate
+		Random    bool                      `json:"random"` //update random count values?
+		Count     int                       `json:"count"`  //how many elements to update
 		Condition string                    `json:"condition"`
 		Where     []structmap.FindCondition `json:"where"`
 		Fields    map[string]interface{}    `json:"fields"`
@@ -235,7 +236,7 @@ func (s *Server[V]) handleUpdateCount(ctx *fasthttp.RequestCtx, storage *structm
 		s.respondWithError(ctx, err.Error())
 		return
 	}
-	ids := storage.UpdateCount(req.Condition, req.Where, req.Fields, req.Count)
+	ids := storage.UpdateCount(req.Condition, req.Where, req.Fields, req.Count, req.Random)
 	s.respondWithSuccess(ctx, map[string][]int64{"updated": ids})
 }
 
