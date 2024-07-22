@@ -363,13 +363,13 @@ func TestUpdateCountRandom(t *testing.T) {
 	storage.Clear()
 
 	for i := range 1000 {
-		example1 := &ExampleStruct{Field1: "value" + fmt.Sprintf("%d", i), Field2: 42, Id: i}
+		example1 := &ExampleStruct{Field1: "value" + fmt.Sprintf("%d", i), Field2: 42, Id: int64(i)}
 		storage.Add(example1)
 	}
 
 	// Update Field1 to "updated" for items where Field2 > 42
 	updatedCount := storage.UpdateCount("AND", []FindCondition{
-		{Field: "Field2", Value: 42, Op: ">"},
+		{Field: "Field2", Value: 42},
 	}, map[string]interface{}{
 		"Field1": "updated",
 	}, 1, true)

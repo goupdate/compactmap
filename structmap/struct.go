@@ -184,8 +184,16 @@ func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fiel
 
 	if random && len(ids) > 0 {
 		upd = make([]int64, 0, len(ids))
+		//how many to update
+		if elCount == 0 {
+			elCount = len(ids)
+		} else {
+			if elCount > len(ids) {
+				elCount = len(ids)
+			}
+		}
 		//choose count random elements from ids
-		for range count {
+		for range elCount {
 			rnd := etc.Crand.Int63() % int64(len(ids))
 			rndId := ids[rnd]
 			upd = append(upd, rndId)
