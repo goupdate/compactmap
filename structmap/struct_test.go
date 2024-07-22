@@ -710,4 +710,36 @@ func TestInSlice(t *testing.T) {
 	if !result {
 		t.Fatal("not in slice 3!")
 	}
+
+	slice = reflect.ValueOf([]interface{}{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361})
+	// Call the function and print the result
+	result = inSlice(value, slice)
+	if !result {
+		t.Fatal("not in slice 4!")
+	}
+}
+
+func TestBenchInSlice(t *testing.T) {
+	r := testing.Benchmark(benchInSlice)
+	t.Log(r.String())
+
+}
+
+func benchInSlice(b *testing.B) {
+	value := reflect.ValueOf(int64(612))
+
+	slices := []reflect.Value{
+		reflect.ValueOf([]float64{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361}),
+		reflect.ValueOf([]int{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361}),
+		reflect.ValueOf([]float32{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361}),
+		reflect.ValueOf([]interface{}{239, 263, 288, 313, 342, 522, 536, 560, 578, 581, 587, 612, 618, 642, 30773, 30796, 30802, 102273, 183342, 191214, 246307, 336361}),
+	}
+
+	b.Run("inslice", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			for _, slice := range slices {
+				inSlice(value, slice)
+			}
+		}
+	})
 }

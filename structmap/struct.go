@@ -213,30 +213,79 @@ func (p *StructMap[V]) GetAll() []V {
 	return ret
 }
 
-// Define a helper function to check if a value exists in a slice
-func inSlice(value reflect.Value, slice reflect.Value) (ret bool) {
+// inSlice checks if a value exists in a slice.
+func inSlice(value reflect.Value, slice reflect.Value) bool {
 	if slice.Len() == 0 {
 		return false
 	}
 
-	if value.Kind() == slice.Index(0).Kind() {
-		for i := 0; i < slice.Len(); i++ {
-			if reflect.DeepEqual(value.Interface(), slice.Index(i).Interface()) {
+	val := convertToUnderlyingType(value).Interface()
+	typ := reflect.TypeOf(val)
+
+	for i := 0; i < slice.Len(); i++ {
+		elem := convertToUnderlyingType(slice.Index(i))
+		elemVal := elem.Interface()
+
+		if value.Kind() == elem.Kind() {
+			if reflect.DeepEqual(val, elemVal) {
 				return true
 			}
+		} else if elem.CanConvert(typ) {
+			if reflect.DeepEqual(val, elem.Convert(typ).Interface()) {
+				return true
+			}
+		} else {
+			switch value.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if elem.Kind() >= reflect.Int && elem.Kind() <= reflect.Int64 {
+					if value.Int() == elem.Int() {
+						return true
+					}
+				} else if elem.Kind() >= reflect.Uint && elem.Kind() <= reflect.Uint64 {
+					if value.Int() == int64(elem.Uint()) {
+						return true
+					}
+				} else if elem.Kind() == reflect.Float32 || elem.Kind() == reflect.Float64 {
+					if float64(value.Int()) == elem.Float() {
+						return true
+					}
+				}
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				if elem.Kind() >= reflect.Int && elem.Kind() <= reflect.Int64 {
+					if value.Uint() == uint64(elem.Int()) {
+						return true
+					}
+				} else if elem.Kind() >= reflect.Uint && elem.Kind() <= reflect.Uint64 {
+					if value.Uint() == elem.Uint() {
+						return true
+					}
+				} else if elem.Kind() == reflect.Float32 || elem.Kind() == reflect.Float64 {
+					if float64(value.Uint()) == elem.Float() {
+						return true
+					}
+				}
+			case reflect.Float32, reflect.Float64:
+				if elem.Kind() >= reflect.Int && elem.Kind() <= reflect.Int64 {
+					if value.Float() == float64(elem.Int()) {
+						return true
+					}
+				} else if elem.Kind() >= reflect.Uint && elem.Kind() <= reflect.Uint64 {
+					if value.Float() == float64(elem.Uint()) {
+						return true
+					}
+				} else if elem.Kind() == reflect.Float32 || elem.Kind() == reflect.Float64 {
+					if value.Float() == elem.Float() {
+						return true
+					}
+				}
+			default:
+				if reflect.DeepEqual(val, elemVal) {
+					return true
+				}
+			}
 		}
-		return false
 	}
 
-	val := value.Interface()
-	typ := reflect.TypeOf(value.Interface())
-	for i := 0; i < slice.Len(); i++ {
-		if slice.Index(i).CanConvert(typ) {
-			if slice.Index(i).Convert(typ).Interface() == val {
-				return true
-			}
-		}
-	}
 	return false
 }
 
@@ -387,7 +436,9 @@ func compareValues(v1, v2 interface{}, op string) bool {
 	case "in":
 		switch v2Val.Kind() {
 		case reflect.Slice, reflect.Array:
-			return inSlice(v1Val, v2Val)
+			ret := inSlice(v1Val, v2Val)
+			fmt.Printf("inslice: %v %v => %v\n", v1Val, v2Val, ret)
+			return ret
 		}
 	case "<>", "!=", "notequal", "nt", "not", "nq", "neq":
 		return !equal(v1Val.Interface(), v2Val.Interface())
@@ -404,6 +455,10 @@ func compareValues(v1, v2 interface{}, op string) bool {
 func convertToUnderlyingType(val reflect.Value) (out reflect.Value) {
 	if val.IsZero() {
 		return val
+	}
+
+	if val.Kind() == reflect.Interface {
+		val = val.Elem() // Dereference the interface to get the underlying value
 	}
 
 	val = reflect.Indirect(val)
