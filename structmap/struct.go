@@ -105,11 +105,15 @@ func (p *StructMap[V]) SetField(id int64, field string, value interface{}) bool 
 	return p.SetFields(id, map[string]interface{}{field: value})
 }
 
-// SetFields sets multiple fields for a struct by ID
 func (p *StructMap[V]) SetFields(id int64, fields map[string]interface{}) bool {
 	p.Lock()
 	defer p.Unlock()
 
+	return p.setFields(id, fields)
+}
+
+// SetFields sets multiple fields for a struct by ID
+func (p *StructMap[V]) setFields(id int64, fields map[string]interface{}) bool {
 	store, ex := p.cm.Get(id)
 	if !ex {
 		return false
@@ -164,6 +168,9 @@ elCount - count of first elements to update, 0 if no limit
 Returns: slice of Ids of updated elements
 */
 func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fields map[string]interface{}, elCount int, random bool) []int64 {
+	p.Lock()
+	defer p.Unlock()
+
 	var ids []int64
 	count := 0
 	p.FindFn(condition, where, func(id int64, v V) bool {
@@ -198,7 +205,7 @@ func (p *StructMap[V]) UpdateCount(condition string, where []FindCondition, fiel
 	}
 
 	for _, id := range upd {
-		p.SetFields(id, fields)
+		p.setFields(id, fields)
 	}
 	return upd
 }
@@ -565,6 +572,18 @@ func (p *StructMap[V]) Find(condition string, where ...FindCondition) []V {
 		return true
 	})
 	return ret
+}
+
+func (p *StructMap[V]) FindAndDelete(condition string, where ...FindCondition) int {
+	var ret []int64
+	p.FindFn(condition, where, func(id int64, v V) bool {
+		ret = append(ret, id)
+		return true
+	})
+	for _, v := range ret {
+		p.cm.Delete(v)
+	}
+	return len(ret)
 }
 
 /*
