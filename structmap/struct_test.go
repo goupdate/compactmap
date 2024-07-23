@@ -98,13 +98,20 @@ func TestFindGreaterThan(t *testing.T) {
 
 	example1 := &ExampleStruct{Field1: "value1", Field2: 42}
 	example2 := &ExampleStruct{Field1: "value2", Field2: 43}
+	example3 := &ExampleStruct{Field1: "value2", Field2: 1721749265} //	1721749265 vs 1.721741202e+09
 
 	storage.Add(example1)
 	storage.Add(example2)
+	storage.Add(example3)
 
 	results := storage.Find("", FindCondition{Field: "Field2", Value: 42, Op: "gt"})
-	if len(results) != 1 || results[0].Field2 != 43 {
-		t.Fatalf("expected to find 1 item with Field2 greater than 42, got %d items", len(results))
+	if len(results) != 2 {
+		t.Fatalf("expected to find 2 item with Field2 greater than 42, got %d items", len(results))
+	}
+
+	results = storage.Find("", FindCondition{Field: "Field2", Value: float64(1.721741202e+09), Op: ">"})
+	if len(results) != 1 {
+		t.Fatalf("expected to find 1 item, got %d items", len(results))
 	}
 }
 
