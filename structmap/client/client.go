@@ -300,7 +300,7 @@ func (c *Client[V]) SetFields(id int64, fields map[string]interface{}) error {
 	return err
 }
 
-func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V, error) {
+func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]*V, error) {
 	checkCondition(condition)
 
 	req := struct {
@@ -316,7 +316,7 @@ func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V
 		return nil, err
 	}
 
-	var results []V
+	var results []*V
 	err = json.Unmarshal(response, &results)
 	if err != nil {
 		if c.error_log != nil {
@@ -326,13 +326,13 @@ func (c *Client[V]) Find(condition string, where []structmap.FindCondition) ([]V
 	return results, err
 }
 
-func (c *Client[V]) All() ([]V, error) {
+func (c *Client[V]) All() ([]*V, error) {
 	response, err := c.get("/api/all")
 	if err != nil {
 		return nil, err
 	}
 
-	var results []V
+	var results []*V
 	err = json.Unmarshal(response, &results)
 	if err != nil {
 		if c.error_log != nil {
