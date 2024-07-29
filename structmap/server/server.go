@@ -86,6 +86,10 @@ func New[V any](storageName string) (*Server[V], error) {
 	return server, nil
 }
 
+func (s *Server[V]) SetLogger(log *zipologger.Logger) {
+	s.log = log
+}
+
 func (s *Server[V]) GetFasthttpServer() *fasthttp.Server {
 	return s.srv
 }
