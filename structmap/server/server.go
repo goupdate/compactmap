@@ -54,6 +54,8 @@ func New[V any](storageName string) (*Server[V], error) {
 	}
 
 	router := fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
+		defer zipologger.HandlePanic()
+
 		switch string(ctx.Path()) {
 		case "/api/clear":
 			server.handleClear(ctx, storage)

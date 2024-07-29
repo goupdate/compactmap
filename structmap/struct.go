@@ -437,6 +437,8 @@ func compareValues(v1, v2 interface{}, op string) bool {
 		}
 
 	case "like", "contains":
+		fmt.Printf("%v vs %v\n", v1Val.Interface(), v2Val.Interface())
+
 		str1, ok1 := v1Val.Interface().(string)
 		str2, ok2 := v2Val.Interface().(string)
 		return ok1 && ok2 && strings.Contains(str1, str2)
