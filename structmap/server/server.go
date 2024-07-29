@@ -147,13 +147,18 @@ func (s *Server[V]) SetLoggingLevel(l int) {
 }
 
 func (s *Server[V]) logAction(ctx *fasthttp.RequestCtx, response ...interface{}) {
+	if s.log == nil {
+		return
+	}
 	switch s.logsLevel {
 	case 0:
 		return
 	case 1:
 		s.log.Printf("%s : %s", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()))
 	case 2:
-		s.log.Printf("%s : %s", ctx.RemoteIP().String(), string(ctx.Request.URI().String()))
+		s.log.Printf("%s : %s [%s%s]", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()), ctx.QueryArgs().String(), ctx.PostArgs().String())
+	case 3:
+		s.log.Printf("%s : %s [%s%s]", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()), ctx.QueryArgs().String(), ctx.PostArgs().String())
 		if len(response) > 0 {
 			ret := ""
 			for _, r := range response {
