@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 
-	"github.com/goupdate/deadlock"
 	"golang.org/x/exp/constraints"
 )
 
@@ -21,7 +21,7 @@ type Entry[K constraints.Ordered, V any] struct {
 }
 
 type CompactMap[K constraints.Ordered, V any] struct {
-	deadlock.RWMutex
+	sync.RWMutex
 
 	buffers    []*[]Entry[K, V]
 	changed    bool

@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goupdate/deadlock"
-
 	"github.com/MasterDimmy/zipologger"
 
 	"github.com/goupdate/compactmap/structmap"
@@ -16,7 +14,7 @@ import (
 )
 
 type Server[V any] struct {
-	deadlock.RWMutex
+	sync.RWMutex
 
 	storage     *structmap.StructMap[*V]
 	srv         *fasthttp.Server
@@ -156,9 +154,9 @@ func (s *Server[V]) logAction(ctx *fasthttp.RequestCtx, response ...interface{})
 	case 1:
 		s.log.Printf("%s : %s", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()))
 	case 2:
-		s.log.Printf("%s : %s [%s%s]", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()), ctx.QueryArgs().String(), ctx.PostArgs().String())
+		s.log.Printf("%s : %s [%s%s%s]", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()), ctx.QueryArgs().String(), ctx.PostArgs().String())
 	case 3:
-		s.log.Printf("%s : %s [%s%s]", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()), ctx.QueryArgs().String(), ctx.PostArgs().String())
+		s.log.Printf("%s : %s [%s%s%s]", ctx.RemoteIP().String(), string(ctx.Request.URI().Path()), ctx.QueryArgs().String(), ctx.PostArgs().String())
 		if len(response) > 0 {
 			ret := ""
 			for _, r := range response {

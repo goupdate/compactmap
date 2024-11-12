@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"unsafe"
+	"sync"
 
 	"github.com/goupdate/compactmap"
-	"github.com/goupdate/deadlock"
 )
 
 /*
@@ -17,7 +17,7 @@ import (
 */
 
 type StructMap[V any] struct {
-	deadlock.RWMutex
+	sync.RWMutex
 
 	cm   *compactmap.CompactMap[int64, V]     // In-memory database
 	info *compactmap.CompactMap[int64, int64] // Store maxId
