@@ -5,9 +5,9 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"unsafe"
-	"sync"
 
 	"github.com/goupdate/compactmap"
 )
@@ -129,6 +129,25 @@ func (p *StructMap[V]) setFields(id int64, fields map[string]interface{}) bool {
 		// Check and set the value with type conversion
 		fieldType := f.Type()
 		valueVal := reflect.ValueOf(value)
+
+		// set "true" into bool true
+		if valueVal.Type().String() == "string" && fieldType.String() == "bool" {
+			str := valueVal.String()
+			if str == "true" || str == "false" {
+				f.Set(reflect.ValueOf(str == "true"))
+				continue
+			}
+		}
+
+		// set true into string "true"
+		if valueVal.Type().String() == "bool" && fieldType.String() == "string" {
+			if valueVal.Bool() {
+				f.Set(reflect.ValueOf("true"))
+			} else {
+				f.Set(reflect.ValueOf("false"))
+			}
+			continue
+		}
 
 		if valueVal.Type().ConvertibleTo(fieldType) {
 			f.Set(valueVal.Convert(fieldType))

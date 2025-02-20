@@ -750,3 +750,136 @@ func benchInSlice(b *testing.B) {
 		}
 	})
 }
+
+func TestSetStringIntoBool(t *testing.T) {
+	storage, _ := New[*ExampleStruct]("test_storage", false)
+	storage.Clear()
+
+	example1 := &ExampleStruct{Field1: "value1", Field2: 42, Field3: false}
+	example2 := &ExampleStruct{Field1: "value2", Field2: 43, Field3: true}
+
+	storage.Add(example1)
+	storage.Add(example2)
+
+	cnt := storage.Update("", []FindCondition{
+		{Field: "Field2", Value: 42}},
+		map[string]interface{}{
+			"Field3": true,
+			"Field1": "updated",
+		})
+
+	if cnt != 1 {
+		t.Fatal("should update 1 field")
+	}
+
+	// Check if the updates were applied correctly
+	results := storage.Find("",
+		FindCondition{Field: "Field2", Value: 42, Op: "equal"})
+	for _, result := range results {
+		if result.Field1 != "updated" {
+			t.Fatalf("expected Field1 to be 'updated', got %s", result.Field1)
+		}
+		if result.Field3 != true {
+			t.Fatalf("expected Field1 to be 'true', got %v", result.Field3)
+		}
+	}
+
+	// ------------ "true" into bool true ----------------------------------
+
+	cnt = storage.Update("", []FindCondition{
+		{Field: "Field2", Value: 42}},
+		map[string]interface{}{
+			"Field3": "false",
+		})
+
+	if cnt != 1 {
+		t.Fatal("should update 1 field")
+	}
+
+	// Check if the updates were applied correctly
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 42, Op: "equal"})
+	for _, result := range results {
+		if result.Field3 != false {
+			t.Fatalf("expected Field1 to be 'false', got %v", result.Field3)
+		}
+	}
+
+	// ------------ false into string "false" ----------------------------------
+	cnt = storage.Update("", []FindCondition{
+		{Field: "Field2", Value: 42}},
+		map[string]interface{}{
+			"Field1": "false",
+		})
+
+	if cnt != 1 {
+		t.Fatal("should update 1 field")
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 42, Op: "equal"})
+	for _, result := range results {
+		if result.Field1 != "false" {
+			t.Fatalf("expected Field1 to be 'false', got %v", result.Field1)
+		}
+	}
+
+	// ------------ true into string "true" ----------------------------------
+	cnt = storage.Update("", []FindCondition{
+		{Field: "Field2", Value: 42}},
+		map[string]interface{}{
+			"Field1": "true",
+		})
+
+	if cnt != 1 {
+		t.Fatal("should update 1 field")
+	}
+
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 42, Op: "equal"})
+	for _, result := range results {
+		if result.Field1 != "true" {
+			t.Fatalf("expected Field1 to be 'true', got %v", result.Field1)
+		}
+	}
+
+	// ------------ false into string "false" ----------------------------------
+	cnt = storage.Update("", []FindCondition{
+		{Field: "Field2", Value: 42}},
+		map[string]interface{}{
+			"Field1": false,
+		})
+
+	if cnt != 1 {
+		t.Fatal("should update 1 field")
+	}
+
+	// Check if the updates were applied correctly
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 42, Op: "equal"})
+	for _, result := range results {
+		if result.Field1 != "false" {
+			t.Fatalf("expected Field1 to be 'false', got %v", result.Field1)
+		}
+	}
+
+	// ------------ true into string "true" ----------------------------------
+	cnt = storage.Update("", []FindCondition{
+		{Field: "Field2", Value: 42}},
+		map[string]interface{}{
+			"Field1": true,
+		})
+
+	if cnt != 1 {
+		t.Fatal("should update 1 field")
+	}
+
+	// Check if the updates were applied correctly
+	results = storage.Find("",
+		FindCondition{Field: "Field2", Value: 42, Op: "equal"})
+	for _, result := range results {
+		if result.Field1 != "true" {
+			t.Fatalf("expected Field1 to be 'true', got %v", result.Field1)
+		}
+	}
+}
