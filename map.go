@@ -189,15 +189,15 @@ func (m *CompactMap[K, V]) delete(key K) {
 		})
 
 		if index < len(*buffer) && (*buffer)[index].Key == key {
-			if len(*buffer) > 1 {
-				//remove element in inner buffer
-				*buffer = append((*buffer)[:index], (*buffer)[index+1:]...)
-			} else {
+			//remove element in inner buffer
+			*buffer = append((*buffer)[:index], (*buffer)[index+1:]...)
+			m.changed = true
+
+			if len(*buffer) == 0 {
 				//remove whole slice
 				m.buffers = append((m.buffers)[:bufferIndex], (m.buffers)[bufferIndex+1:]...)
 			}
 
-			m.changed = true
 			return
 		}
 	}
