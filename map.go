@@ -40,7 +40,9 @@ func (m *CompactMap[K, V]) Clear() {
 	m.Lock()
 	defer m.Unlock()
 
-	m.buffers = m.buffers[0:0]
+	if len(m.buffers) > 0 {
+		m.buffers = m.buffers[0:0]
+	}
 	m.changed = true
 }
 
@@ -97,7 +99,7 @@ func (m *CompactMap[K, V]) addOrSet(key K, value V) (overwrited bool) {
 	bufferIndex := len(m.buffers) - 1
 
 	buffer := m.buffers[bufferIndex]
-	if len(*buffer) < maxSliceSize {
+	if buffer != nil && len(*buffer) < maxSliceSize {
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
 		})
@@ -112,6 +114,13 @@ func (m *CompactMap[K, V]) addOrSet(key K, value V) (overwrited bool) {
 			overwrited = false
 		}
 		m.changed = true
+		return
+	}
+
+	if buffer == nil {
+		m.buffers[bufferIndex] = &[]Entry[K, V]{Entry[K, V]{Key: key, Value: value}}
+		m.changed = true
+		overwrited = false
 		return
 	}
 
@@ -139,6 +148,12 @@ func (m *CompactMap[K, V]) Get(key K) (V, bool) {
 func (m *CompactMap[K, V]) get(key K) (V, bool) {
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
+		if buffer == nil {
+			continue
+		}
+		if len(*buffer) == 0 {
+			continue
+		}
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
 		})
@@ -162,6 +177,13 @@ func (m *CompactMap[K, V]) Delete(key K) {
 func (m *CompactMap[K, V]) delete(key K) {
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
+		if buffer == nil {
+			continue
+		}
+		if len(*buffer) == 0 {
+			continue
+		}
+
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
 		})
@@ -192,10 +214,12 @@ func (m *CompactMap[K, V]) Iterate(fn func(key K, val V) bool) {
 	defer m.RUnlock()
 
 	for _, buffer := range m.buffers {
-		buffer_ := *buffer
-		for _, k := range buffer_ {
-			if !fn(k.Key, k.Value) {
-				return
+		if buffer != nil {
+			buffer_ := *buffer
+			for _, k := range buffer_ {
+				if !fn(k.Key, k.Value) {
+					return
+				}
 			}
 		}
 	}
@@ -207,6 +231,9 @@ func (m *CompactMap[K, V]) Exist(key K) bool {
 
 	for bufferIndex := range len(m.buffers) {
 		buffer := m.buffers[bufferIndex]
+		if buffer == nil {
+			continue
+		}
 		index := sort.Search(len(*buffer), func(i int) bool {
 			return (*buffer)[i].Key >= key
 		})
@@ -224,7 +251,9 @@ func (m *CompactMap[K, V]) Count() int {
 
 	count := 0
 	for _, buffer := range m.buffers {
-		count += len(*buffer)
+		if buffer != nil {
+			count += len(*buffer)
+		}
 	}
 	return count
 }
@@ -235,7 +264,9 @@ func (m *CompactMap[K, V]) Stats() string {
 
 	count := 0
 	for _, buffer := range m.buffers {
-		count += len(*buffer)
+		if buffer != nil {
+			count += len(*buffer)
+		}
 	}
 
 	str := fmt.Sprintf("%d buffers, total len: %d", len(m.buffers), count)
@@ -271,7 +302,9 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	// Write number of entries
 	totalEntries := 0 //Count()
 	for _, buffer := range m.buffers {
-		totalEntries += len(*buffer)
+		if buffer != nil {
+			totalEntries += len(*buffer)
+		}
 	}
 
 	totalEntriesBuf := make([]byte, 8)
@@ -283,7 +316,12 @@ func (m *CompactMap[K, V]) Save(filename string) error {
 	var buf4 [4]byte
 
 	for _, buffer_ := range m.buffers {
+		if buffer_ == nil {
+			continue
+		}
+
 		buffer := *buffer_
+
 		// Write keys and values
 		for _, entry := range buffer {
 			keyData, err := Serialize(entry.Key)
