@@ -37,6 +37,18 @@ func TestDelete(t *testing.T) {
 	value, exists := cm.Get(2)
 	assert.True(t, exists, "Value for key 2 should exist")
 	assert.Equal(t, 200, value, "Value for key 2 should be 200")
+
+	cm.Delete(1)
+	cm.Delete(2)
+	cm.Delete(1)
+
+	cm.AddOrSet(1, 100)
+	cm.Delete(1)
+	cm.Delete(1)
+
+	cm.AddOrSet(1, 100)
+	cm.Delete(1)
+	cm.Delete(1)
 }
 
 func TestIterate(t *testing.T) {
