@@ -48,8 +48,8 @@ func (m *CompactMap[K, V]) Clear() {
 
 // sync.Map analog
 func (m *CompactMap[K, V]) LoadOrStore(key K, value V) (old V, loaded bool) {
-	m.RLock()
-	defer m.RUnlock()
+	m.Lock()
+	defer m.Unlock()
 
 	old, loaded = m.get(key)
 	if loaded {
@@ -61,8 +61,8 @@ func (m *CompactMap[K, V]) LoadOrStore(key K, value V) (old V, loaded bool) {
 }
 
 func (m *CompactMap[K, V]) LoadAndDelete(key K) (old V, loaded bool) {
-	m.RLock()
-	defer m.RUnlock()
+	m.Lock()
+	defer m.Unlock()
 
 	old, loaded = m.get(key)
 	if loaded {
@@ -402,7 +402,7 @@ func (m *CompactMap[K, V]) Init(filename string) error {
 			return err
 		}
 
-		m.AddOrSet(key, value)
+		m.addOrSet(key, value)
 	}
 
 	m.changed = false
